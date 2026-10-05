@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Biotex Life — ECG • Activity • Recovery</title>
+  <meta name="description" content="Biotex Life — the connected human performance app for the Biotex ECG Jacket. ECG, activity, recovery and body-energy monitoring.">
+  <meta name="theme-color" content="#050708">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/screens.css">
+  <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+
+<!-- ============================================================
+     ICON SPRITE (inline SVG, single stroke style)
+     ============================================================ -->
+<svg class="svg-sprite" aria-hidden="true" focusable="false" width="0" height="0" style="position:absolute">
+  <defs>
+    <!-- Brand mark: ECG pulse inside a rounded hexagonal cell -->
+    <symbol id="logo-mark" viewBox="0 0 64 64">
+      <defs>
+        <linearGradient id="lmg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#5EF2E6"/>
+          <stop offset="1" stop-color="#1EB8D8"/>
+        </linearGradient>
+      </defs>
+      <path d="M32 3 55 16.4v27.2L32 57 9 43.6V16.4Z" fill="none" stroke="url(#lmg)" stroke-width="3.2" stroke-linejoin="round"/>
+      <path d="M14 33h8l3.5-7 5 15 5.5-19 4 11h10" fill="none" stroke="url(#lmg)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <!-- Full wordmark -->
+    <symbol id="logo-full" viewBox="0 0 300 64">
+      <use href="#logo-mark" x="0" y="0" width="64" height="64"/>
+      <text x="78" y="39" font-family="Manrope, Inter, system-ui, sans-serif" font-size="30" font-weight="800" letter-spacing="3" fill="currentColor">BIOTEX</text>
+      <text x="80" y="56" font-family="Manrope, Inter, system-ui, sans-serif" font-size="13" font-weight="600" letter-spacing="7" fill="#3EE2D4">LIFE</text>
+    </symbol>
+
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a2 2 0 0 1-2 2h-4v-6h-6v6H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
+    <symbol id="i-ecg" viewBox="0 0 24 24"><path d="M2 12h4l2.5-6 3 12 3-9 2 3H22"/></symbol>
+    <symbol id="i-analytics" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></symbol>
+    <symbol id="i-battery" viewBox="0 0 24 24"><rect x="2" y="7" width="17" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="13"/></symbol>
+    <symbol id="i-charging" viewBox="0 0 24 24"><path d="M5 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.19M15 6h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3.19"/><line x1="23" y1="13" x2="23" y2="11"/><polyline points="11 6 7 12 13 12 9 18"/></symbol>
+    <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+    <symbol id="i-thermometer" viewBox="0 0 24 24"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></symbol>
+    <symbol id="i-wind" viewBox="0 0 24 24"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/></symbol>
+    <symbol id="i-droplet" viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></symbol>
+    <symbol id="i-steps" viewBox="0 0 24 24"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0z"/></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></symbol>
+    <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M12 19h4.5a3.5 3.5 0 0 0 0-7h-9a3.5 3.5 0 0 1 0-7H12"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+    <symbol id="i-timer" viewBox="0 0 24 24"><line x1="10" y1="2" x2="14" y2="2"/><line x1="12" y1="14" x2="15" y2="11"/><circle cx="12" cy="14" r="8"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
+    <symbol id="i-chevron-down" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+    <symbol id="i-trend-up" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></symbol>
+    <symbol id="i-trend-down" viewBox="0 0 24 24"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></symbol>
+    <symbol id="i-bluetooth" viewBox="0 0 24 24"><polyline points="6.5 6.5 17.5 17.5 12 23 12 1 17.5 6.5 6.5 17.5"/></symbol>
+    <symbol id="i-signal" viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></symbol>
+    <symbol id="i-gps" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M12 15l3.5-3.5"/><path d="M20.3 18c.4-1 .7-2.2.7-3.4C21 9.8 17 6 12 6s-9 3.8-9 8.6c0 1.2.3 2.4.7 3.4"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+    <symbol id="i-locate" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><line x1="22" y1="12" x2="19" y2="12"/><line x1="5" y1="12" x2="2" y2="12"/><line x1="12" y1="5" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="19"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></symbol>
+    <symbol id="i-walk" viewBox="0 0 24 24"><circle cx="13" cy="4" r="1.6"/><path d="M11.2 8.2L9 13l3 2.5V21"/><path d="M11.2 8.2l3.3-.7 2.3 3.5 3 1"/><path d="M9 13l-3 7"/><path d="M14.5 7.5L12 15.5"/></symbol>
+    <symbol id="i-run" viewBox="0 0 24 24"><circle cx="15.5" cy="3.8" r="1.6"/><path d="M5 20l4.5-5.5 3 2 2.5-5"/><path d="M8.5 12l4-3.5 3.5 2.5 3-.5"/><path d="M12.5 8.5L16 14l3 1.5"/><path d="M12 16.5L9.5 20"/></symbol>
+    <symbol id="i-bike" viewBox="0 0 24 24"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></symbol>
+    <symbol id="i-hike" viewBox="0 0 24 24"><path d="M3 20l5-9 3 5 3-8 7 12z"/><path d="M9.5 9L12 5"/></symbol>
+    <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M6.5 6.5v11M17.5 6.5v11M3 9v6M21 9v6M6.5 12h11"/></symbol>
+    <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></symbol>
+    <symbol id="i-mountain" viewBox="0 0 24 24"><path d="M8 3l4 8 5-5 5 15H2L8 3z"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+    <symbol id="i-watch" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><polyline points="12 9 12 12 13.5 13.5"/><path d="M16.51 17.35l-.35 3.83a2 2 0 0 1-2 1.82H9.83a2 2 0 0 1-2-1.82l-.35-3.83m.01-10.7l.35-3.83A2 2 0 0 1 9.83 1h4.35a2 2 0 0 1 2 1.82l.35 3.83"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+    <symbol id="i-ruler" viewBox="0 0 24 24"><path d="M21.3 8.7l-6-6a1 1 0 0 0-1.4 0L2.7 13.9a1 1 0 0 0 0 1.4l6 6a1 1 0 0 0 1.4 0L21.3 10.1a1 1 0 0 0 0-1.4z"/><path d="M7 14l2 2M10 11l2 2M13 8l2 2"/></symbol>
+    <symbol id="i-scale" viewBox="0 0 24 24"><path d="M16 16.5a4 4 0 0 1-8 0"/><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 7v3"/></symbol>
+    <symbol id="i-shirt" viewBox="0 0 24 24"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></symbol>
+    <symbol id="i-vibrate" viewBox="0 0 24 24"><path d="M2 8l2 2-2 2 2 2-2 2"/><path d="M22 8l-2 2 2 2-2 2 2 2"/><rect x="8" y="5" width="8" height="14" rx="1"/></symbol>
+    <symbol id="i-stethoscope" viewBox="0 0 24 24"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+    <symbol id="i-cloud-sun" viewBox="0 0 24 24"><path d="M12 2v2M4.93 4.93l1.41 1.41M20 12h2M19.07 4.93l-1.41 1.41"/><path d="M15.95 12.4A4 4 0 1 0 9.6 9.6"/><path d="M13 22H7a5 5 0 1 1 4.9-6A3 3 0 1 1 13 22z"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></symbol>
+    <symbol id="i-brain" viewBox="0 0 24 24"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44A2.5 2.5 0 0 1 4 17.5 2.5 2.5 0 0 1 2.5 13 2.5 2.5 0 0 1 4 8.5 2.5 2.5 0 0 1 7.04 4.44 2.5 2.5 0 0 1 9.5 2z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44A2.5 2.5 0 0 0 20 17.5a2.5 2.5 0 0 0 1.5-4.5 2.5 2.5 0 0 0-1.5-4.5 2.5 2.5 0 0 0-3.04-4.06A2.5 2.5 0 0 0 14.5 2z"/></symbol>
+    <symbol id="i-bed" viewBox="0 0 24 24"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></symbol>
+  </defs>
+</svg>
+
+<!-- ============================================================
+     APP SHELL
+     ============================================================ -->
+<div id="app" class="app" data-current="splash">
+
+  <!-- Desktop sidebar -->
+  <aside class="sidebar" aria-label="Primary navigation">
+    <div class="sidebar__brand">
+      <span class="brand-logo brand-logo--md"><img alt="Biotex" hidden><svg class="brand-logo__svg" aria-label="Biotex Life"><use href="#logo-full"/></svg></span>
+      <span class="sidebar__tag">ECG • Activity • Recovery</span>
+    </div>
+    <nav class="sidebar__nav">
+      <a class="sidebar__link" href="#/home" data-nav="home"><svg><use href="#i-home"/></svg><span>Home</span></a>
+      <a class="sidebar__link" href="#/activity" data-nav="activity"><svg><use href="#i-activity"/></svg><span>Activity</span></a>
+      <a class="sidebar__link" href="#/ecg" data-nav="ecg"><svg><use href="#i-ecg"/></svg><span>Live ECG</span></a>
+      <a class="sidebar__link" href="#/analytics" data-nav="analytics"><svg><use href="#i-analytics"/></svg><span>Analytics</span></a>
+      <a class="sidebar__link" href="#/profile" data-nav="profile"><svg><use href="#i-user"/></svg><span>Profile</span></a>
+      <div class="sidebar__divider"></div>
+      <a class="sidebar__link" href="#/insights" data-nav="insights"><svg><use href="#i-sparkles"/></svg><span>Insights</span></a>
+      <a class="sidebar__link" href="#/history" data-nav="history"><svg><use href="#i-list"/></svg><span>History</span></a>
+      <a class="sidebar__link" href="#/notifications" data-nav="notifications"><svg><use href="#i-bell"/></svg><span>Notifications</span><span class="sidebar__badge" data-bind="unreadCount"></span></a>
+      <a class="sidebar__link" href="#/device" data-nav="device"><svg><use href="#i-shirt"/></svg><span>Jacket</span></a>
+      <a class="sidebar__link" href="#/settings" data-nav="settings"><svg><use href="#i-settings"/></svg><span>Settings</span></a>
+    </nav>
+    <div class="sidebar__device">
+      <div class="sidebar__device-row">
+        <span class="status-dot" data-bind-class="deviceDot"></span>
+        <span data-bind="deviceStatusText">Jacket Connected</span>
+      </div>
+      <div class="sidebar__device-row text-muted">
+        <svg class="ico"><use href="#i-battery"/></svg>
+        <span><span data-bind="jacketBattery">82</span>% · <span data-bind="firmware">v1.0.8</span></span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main" id="main">
+    <div class="screens" id="screens">
+
+      <!-- ================= SPLASH ================= -->
+      <section class="screen screen--immersive" data-screen="splash" data-nav-hidden>
+        <canvas class="splash__particles" id="splash-particles" aria-hidden="true"></canvas>
+        <div class="splash__inner">
+          <div class="splash__logo"><span class="brand-logo brand-logo--xl"><img alt="Biotex" hidden><svg class="brand-logo__svg" aria-label="Biotex"><use href="#logo-full"/></svg></span></div>
+          <svg class="splash__ecg" viewBox="0 0 320 80" aria-hidden="true">
+            <path class="splash__ecg-path" d="M0 40 H70 L80 30 L90 40 H120 L130 8 L140 70 L150 40 H180 L195 30 L210 40 H320" fill="none" stroke="url(#splashGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <defs><linearGradient id="splashGrad" x1="0" x2="1"><stop offset="0" stop-color="#3EE2D4" stop-opacity="0"/><stop offset=".2" stop-color="#3EE2D4"/><stop offset=".8" stop-color="#3EE2D4"/><stop offset="1" stop-color="#3EE2D4" stop-opacity="0"/></linearGradient></defs>
+          </svg>
+          <h1 class="splash__title">BIOTEX LIFE</h1>
+          <p class="splash__subtitle">ECG • Activity • Recovery</p>
+          <p class="splash__tag">Connected Human Performance</p>
+        </div>
+      </section>
+
+      <!-- ================= ONBOARDING ================= -->
+      <section class="screen screen--immersive" data-screen="onboarding" data-nav-hidden>
+        <div class="onb">
+          <header class="onb__top">
+            <span class="brand-logo brand-logo--sm"><img alt="Biotex" hidden><svg class="brand-logo__svg" aria-label="Biotex"><use href="#logo-full"/></svg></span>
+            <button class="btn btn--ghost btn--sm" data-onb="skip">Skip</button>
+          </header>
+
+          <div class="onb__track" id="onb-track">
+            <!-- Slide 1 -->
+            <article class="onb__slide is-active" data-slide="0">
+              <div class="onb__visual">
+                <svg class="onb__person" viewBox="0 0 260 320" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="jg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1A2228"/><stop offset="1" stop-color="#0C1114"/></linearGradient>
+                    <radialGradient id="sg" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#3EE2D4" stop-opacity=".9"/><stop offset="1" stop-color="#3EE2D4" stop-opacity="0"/></radialGradient>
+                  </defs>
+                  <!-- head & neck -->
+                  <circle cx="130" cy="42" r="26" fill="#161D22" stroke="rgba(255,255,255,.14)"/>
+                  <rect x="120" y="66" width="20" height="16" rx="6" fill="#161D22" stroke="none"/>
+                  <!-- jacket -->
+                  <path d="M110 78 L150 78 L154 92 L188 102 C214 112 222 160 224 176 L230 240 L198 246 L192 176 L192 296 L68 296 L68 176 L62 246 L30 240 L36 176 C38 160 46 112 72 102 L106 92 Z" fill="url(#jg)" stroke="rgba(255,255,255,.16)" stroke-width="1.5" stroke-linejoin="round"/>
+                  <path d="M130 92 V296" stroke="rgba(255,255,255,.14)" stroke-dasharray="3 4"/>
+                  <path d="M110 78 L130 100 L150 78" fill="none" stroke="rgba(255,255,255,.14)"/>
+                  <path d="M86 236 h24 M150 236 h24" stroke="rgba(255,255,255,.12)" stroke-linecap="round"/>
+                  <!-- sensor grid -->
+                  <g class="onb__grid" stroke="rgba(62,226,212,.12)">
+                    <path d="M80 130 H180 M80 160 H180 M80 190 H180 M80 220 H180"/>
+                    <path d="M100 110 V260 M130 110 V260 M160 110 V260"/>
+                  </g>
+                  <!-- sensors -->
+                  <g class="onb__sensors">
+                    <circle class="sensor-pulse" cx="108" cy="130" r="14" fill="url(#sg)"/><circle cx="108" cy="130" r="4" fill="#3EE2D4"/>
+                    <circle class="sensor-pulse d2" cx="152" cy="130" r="14" fill="url(#sg)"/><circle cx="152" cy="130" r="4" fill="#3EE2D4"/>
+                    <circle class="sensor-pulse d3" cx="130" cy="176" r="14" fill="url(#sg)"/><circle cx="130" cy="176" r="4" fill="#3EE2D4"/>
+                    <circle class="sensor-pulse d4" cx="100" cy="208" r="14" fill="url(#sg)"/><circle cx="100" cy="208" r="4" fill="#3EE2D4"/>
+                    <circle class="sensor-pulse d5" cx="160" cy="208" r="14" fill="url(#sg)"/><circle cx="160" cy="208" r="4" fill="#3EE2D4"/>
+                  </g>
+                  <!-- labels -->
+                  <g class="onb__labels" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600" fill="#C9D3DA">
+                    <path d="M108 130 H40" stroke="rgba(62,226,212,.5)"/><text x="10" y="126" fill="#3EE2D4">ECG</text>
+                    <path d="M152 130 H224" stroke="rgba(62,226,212,.5)"/><text x="196" y="122">Heart</text><text x="196" y="136">Rate</text>
+                    <path d="M130 176 H226" stroke="rgba(62,226,212,.5)"/><text x="184" y="170">Respiration</text>
+                    <path d="M100 208 H34" stroke="rgba(62,226,212,.5)"/><text x="6" y="204">Temp.</text>
+                    <path d="M160 208 H230" stroke="rgba(62,226,212,.5)"/><text x="192" y="204">Movement</text>
+                  </g>
+                </svg>
+              </div>
+              <h2 class="onb__title">Continuous Body Monitoring</h2>
+              <p class="onb__text">Understand your body while you move.</p>
+            </article>
+
+            <!-- Slide 2 -->
+            <article class="onb__slide" data-slide="1">
+              <div class="onb__visual onb__visual--rings">
+                <div class="onb__ring"><div class="ring" data-ring="onb-bb" data-value="78" data-color="aqua" data-size="92" data-stroke="7"></div><span>Body Battery</span></div>
+                <div class="onb__ring"><div class="ring" data-ring="onb-rec" data-value="82" data-color="green" data-size="92" data-stroke="7"></div><span>Recovery</span></div>
+                <div class="onb__ring"><div class="ring" data-ring="onb-fat" data-value="32" data-color="orange" data-size="92" data-stroke="7"></div><span>Fatigue</span></div>
+                <div class="onb__ring"><div class="ring" data-ring="onb-hrv" data-value="64" data-color="blue" data-size="92" data-stroke="7" data-label="54" data-sub="ms"></div><span>HRV</span></div>
+                <div class="onb__ring"><div class="ring" data-ring="onb-str" data-value="24" data-color="purple" data-size="92" data-stroke="7"></div><span>Stress</span></div>
+                <div class="onb__ring"><div class="ring" data-ring="onb-tl" data-value="68" data-color="aqua" data-size="92" data-stroke="7"></div><span>Training Load</span></div>
+              </div>
+              <h2 class="onb__title">Know Your Readiness</h2>
+              <p class="onb__text">Recovery, fatigue and energy insights built from your daily physiological trends.</p>
+            </article>
+
+            <!-- Slide 3 -->
+            <article class="onb__slide" data-slide="2">
+              <div class="onb__visual">
+                <div class="onb__map">
+                  <svg viewBox="0 0 300 220" aria-hidden="true">
+                    <defs>
+                      <pattern id="onbgrid" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M30 0H0V30" fill="none" stroke="rgba(255,255,255,.06)"/></pattern>
+                    </defs>
+                    <rect width="300" height="220" fill="url(#onbgrid)" stroke="none"/>
+                    <path d="M0 60 C60 50 90 90 150 80 S240 40 300 60" stroke="rgba(255,255,255,.08)" stroke-width="10" fill="none"/>
+                    <path d="M40 220 C60 150 120 160 150 120 S190 40 240 0" stroke="rgba(255,255,255,.08)" stroke-width="8" fill="none"/>
+                    <path d="M0 150 H300" stroke="rgba(255,255,255,.06)" stroke-width="6"/>
+                    <ellipse cx="225" cy="150" rx="48" ry="26" fill="rgba(62,226,212,.08)" stroke="none"/>
+                    <path class="onb__route" d="M30 180 C60 170 70 130 100 120 S150 140 170 110 S210 70 250 60 S280 40 285 25" fill="none" stroke="#3EE2D4" stroke-width="4" stroke-linecap="round"/>
+                    <circle cx="30" cy="180" r="6" fill="#0C1013" stroke="#34D399" stroke-width="3"/>
+                    <circle class="onb__route-dot" cx="285" cy="25" r="7" fill="#3EE2D4"/>
+                  </svg>
+                  <div class="onb__map-stats">
+                    <div><b>5.72</b><span>km</span></div>
+                    <div><b>6:21</b><span>/km</span></div>
+                    <div><b>136</b><span>bpm</span></div>
+                    <div><b>37.2°</b><span>temp</span></div>
+                  </div>
+                </div>
+              </div>
+              <h2 class="onb__title">Track Every Journey</h2>
+              <p class="onb__text">See where you moved and understand how your body responded.</p>
+            </article>
+          </div>
+
+          <footer class="onb__footer">
+            <div class="onb__dots" id="onb-dots"><span class="is-active"></span><span></span><span></span></div>
+            <div class="onb__actions">
+              <button class="btn btn--ghost" data-onb="back">Back</button>
+              <button class="btn btn--primary" data-onb="next">Next</button>
+            </div>
+          </footer>
+        </div>
+      </section>
+
+      <!-- ================= CONNECT ================= -->
+      <section class="screen screen--immersive" data-screen="connect" data-nav-hidden>
+        <div class="connect">
+          <header class="connect__top">
+            <span class="brand-logo brand-logo--sm"><img alt="Biotex" hidden><svg class="brand-logo__svg" aria-label="Biotex"><use href="#logo-full"/></svg></span>
+            <button class="btn btn--ghost btn--sm" data-go="home" id="connect-skip">Skip for now</button>
+          </header>
+          <h1 class="connect__title">Connect Your Jacket</h1>
+          <p class="connect__sub">Bring the <b>BIOTEX ECG JACKET</b> within range and keep Bluetooth enabled.</p>
+
+          <div class="connect__stage" id="connect-stage" data-state="idle">
+            <div class="connect__rings" aria-hidden="true"><span></span><span></span><span></span></div>
+            <svg class="jacket" viewBox="0 0 200 260" aria-label="Biotex ECG Jacket silhouette">
+              <defs>
+                <linearGradient id="jacketFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1B2329"/><stop offset="1" stop-color="#0B0F12"/></linearGradient>
+                <radialGradient id="sensorGlow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#3EE2D4" stop-opacity=".85"/><stop offset="1" stop-color="#3EE2D4" stop-opacity="0"/></radialGradient>
+              </defs>
+              <path class="jacket__body" d="M80 14 L120 14 L124 34 L154 44 C178 56 186 120 188 140 L192 206 L150 212 L146 140 L144 96 L146 236 L54 236 L56 96 L54 140 L50 212 L8 206 L12 140 C14 120 22 56 46 44 L76 34 Z" fill="url(#jacketFill)" stroke="rgba(255,255,255,.18)" stroke-width="1.6" stroke-linejoin="round"/>
+              <path d="M100 34 V236" stroke="rgba(255,255,255,.16)" stroke-dasharray="3 4"/>
+              <path d="M80 14 L100 36 L120 14" fill="none" stroke="rgba(255,255,255,.16)"/>
+              <path d="M66 192 h22 M112 192 h22" stroke="rgba(255,255,255,.14)" stroke-linecap="round"/>
+              <g class="jacket__grid" stroke="rgba(62,226,212,.10)"><path d="M62 80 H138 M62 110 H138 M62 140 H138 M62 170 H138 M80 60 V220 M100 60 V220 M120 60 V220"/></g>
+              <g class="jacket__sensors">
+                <g class="jacket__sensor" data-sensor="ecg-l"><circle cx="82" cy="80" r="13" fill="url(#sensorGlow)"/><circle cx="82" cy="80" r="3.5"/></g>
+                <g class="jacket__sensor" data-sensor="ecg-r"><circle cx="118" cy="80" r="13" fill="url(#sensorGlow)"/><circle cx="118" cy="80" r="3.5"/></g>
+                <g class="jacket__sensor" data-sensor="hr-l"><circle cx="84" cy="118" r="13" fill="url(#sensorGlow)"/><circle cx="84" cy="118" r="3.5"/></g>
+                <g class="jacket__sensor" data-sensor="hr-r"><circle cx="116" cy="118" r="13" fill="url(#sensorGlow)"/><circle cx="116" cy="118" r="3.5"/></g>
+                <g class="jacket__sensor" data-sensor="core"><circle cx="100" cy="152" r="13" fill="url(#sensorGlow)"/><circle cx="100" cy="152" r="3.5"/></g>
+                <g class="jacket__sensor" data-sensor="side-l"><circle cx="64" cy="172" r="13" fill="url(#sensorGlow)"/><circle cx="64" cy="172" r="3.5"/></g>
+                <g class="jacket__sensor" data-sensor="side-r"><circle cx="136" cy="172" r="13" fill="url(#sensorGlow)"/><circle cx="136" cy="172" r="3.5"/></g>
+              </g>
+            </svg>
+            <div class="connect__check" aria-hidden="true"><svg><use href="#i-check"/></svg></div>
+          </div>
+
+          <div class="connect__status">
+            <span class="status-dot" id="connect-dot"></span>
+            <span id="connect-status-text">Ready to pair</span>
+          </div>
+          <div class="connect__device-name">BIOTEX ECG JACKET <span class="text-muted">· BTX-ECG-0427</span></div>
+          <p class="connect__note text-muted small" data-bind="btAvailabilityNote">Demo pairing — live data is simulated.</p>
+
+          <div class="connect__actions" id="connect-actions">
+            <button class="btn btn--primary btn--lg btn--block" data-device="search"><svg><use href="#i-search"/></svg>Search for Jacket</button>
+          </div>
+
+          <div class="card connect__info" id="connect-info">
+            <div class="info-grid">
+              <div class="info-item"><svg><use href="#i-battery"/></svg><div><span>Battery</span><b><span data-bind="jacketBattery">82</span>%</b></div></div>
+              <div class="info-item"><svg><use href="#i-bluetooth"/></svg><div><span>Bluetooth</span><b data-bind="btStatus">Connected</b></div></div>
+              <div class="info-item"><svg><use href="#i-signal"/></svg><div><span>Signal</span><b data-bind="signalQuality">Excellent</b></div></div>
+              <div class="info-item"><svg><use href="#i-gps"/></svg><div><span>GPS</span><b data-bind="gpsStatus">Ready</b></div></div>
+              <div class="info-item"><svg><use href="#i-cpu"/></svg><div><span>Firmware</span><b data-bind="firmware">v1.0.8</b></div></div>
+              <div class="info-item"><svg><use href="#i-refresh"/></svg><div><span>Last Sync</span><b data-bind="lastSync">Just now</b></div></div>
+            </div>
+            <h3 class="card__label mt-lg">Sensors</h3>
+            <ul class="sensor-list" data-sensor-list="connect"></ul>
+            <div class="action-grid mt-md">
+              <button class="action-tile" data-device="calibrate"><svg><use href="#i-sliders"/></svg><span>Sensor Calibration</span></button>
+              <button class="action-tile" data-device="firmware"><svg><use href="#i-cpu"/></svg><span>Firmware Update</span></button>
+              <button class="action-tile" data-device="find"><svg><use href="#i-vibrate"/></svg><span>Find My Jacket</span></button>
+              <button class="action-tile" data-device="info"><svg><use href="#i-info"/></svg><span>Device Information</span></button>
+            </div>
+          </div>
+          <div class="connect__footer">
+            <button class="btn btn--secondary btn--block btn--lg" data-go="home" id="connect-continue">Continue to Dashboard<svg><use href="#i-chevron-right"/></svg></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= HOME ================= -->
+      <section class="screen" data-screen="home">
+        <header class="app-header">
+          <div class="app-header__left">
+            <span class="brand-logo brand-logo--sm"><img alt="Biotex" hidden><svg class="brand-logo__svg" aria-label="Biotex Life"><use href="#logo-full"/></svg></span>
+          </div>
+          <div class="app-header__right">
+            <button class="chip chip--status" data-go="device" aria-label="Jacket status"><span class="status-dot" data-bind-class="deviceDot"></span><span class="chip__full" data-bind="deviceStatusShort">Jacket Connected</span><span class="chip__mini" data-bind="deviceStatusMini">Connected</span></button>
+            <button class="icon-btn" data-go="notifications" aria-label="Notifications"><svg><use href="#i-bell"/></svg><span class="icon-btn__dot" data-bind-show="hasUnread"></span></button>
+            <button class="avatar" data-go="profile" aria-label="Profile"><span data-bind="initials">L</span></button>
+          </div>
+        </header>
+
+        <div class="home">
+          <div class="home__greeting">
+            <p class="eyebrow" data-bind="greeting">Good Morning</p>
+            <h1 class="home__name" data-bind="userName">Dr. Leroy</h1>
+            <p class="home__sync text-muted"><svg class="ico"><use href="#i-refresh"/></svg><span data-bind="syncText">Synced just now</span> · <span class="weather" title="Demo environmental context"><svg class="ico"><use href="#i-cloud-sun"/></svg>Hyderabad 28°C Clear</span></p>
+          </div>
+
+          <!-- Disconnected banner -->
+          <div class="banner banner--warn" data-bind-show="deviceDisconnected" hidden>
+            <svg><use href="#i-bluetooth"/></svg>
+            <div><b>Jacket disconnected</b><span>Live ECG and sensor data are paused.</span></div>
+            <button class="btn btn--sm btn--secondary" data-device="reconnect">Reconnect</button>
+          </div>
+
+          <!-- Daily status hero -->
+          <section class="hero card card--glow" data-go="recovery" role="button" tabindex="0" aria-label="Today's readiness">
+            <div class="hero__bg" aria-hidden="true"></div>
+            <div class="hero__content">
+              <p class="eyebrow">TODAY</p>
+              <h2 class="hero__title" data-bind="readinessTitle">Ready for your day</h2>
+              <p class="hero__sub" data-bind="readinessText">Recovery is strong and fatigue remains low.</p>
+              <div class="hero__stats">
+                <div class="hero__stat"><span class="hero__stat-value c-green"><span data-bind="recovery">82</span>%</span><span class="hero__stat-label">Recovery</span></div>
+                <div class="hero__stat"><span class="hero__stat-value c-orange"><span data-bind="fatigue">32</span>%</span><span class="hero__stat-label">Fatigue</span></div>
+                <div class="hero__stat"><span class="hero__stat-value c-aqua" data-bind="bodyBattery">78</span><span class="hero__stat-label">Body Battery</span></div>
+              </div>
+            </div>
+          </section>
+
+          <button class="btn btn--cta btn--block" data-action="start-activity"><svg><use href="#i-play"/></svg>START ACTIVITY</button>
+
+          <!-- Quick actions -->
+          <div class="quick-actions" aria-label="Quick actions">
+            <button class="quick" data-action="quick-walk"><span class="quick__icon"><svg><use href="#i-walk"/></svg></span>Start Walk</button>
+            <button class="quick" data-go="ecg"><span class="quick__icon"><svg><use href="#i-ecg"/></svg></span>ECG</button>
+            <button class="quick" data-go="map"><span class="quick__icon"><svg><use href="#i-map"/></svg></span>Map</button>
+            <button class="quick" data-go="recovery"><span class="quick__icon"><svg><use href="#i-leaf"/></svg></span>Recovery</button>
+            <button class="quick" data-go="device"><span class="quick__icon"><svg><use href="#i-shirt"/></svg></span>Jacket</button>
+          </div>
+
+          <div class="home__grid">
+            <!-- Body battery hero card -->
+            <section class="card card--hero bb-card" data-go="body-battery" role="button" tabindex="0" aria-label="Body battery details">
+              <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-zap"/></svg>BODY BATTERY</span><span class="badge badge--aqua" data-bind="bodyBatteryStatus">HIGH ENERGY</span></div>
+              <div class="bb-card__body">
+                <div class="ring ring--hero" data-ring="bodyBattery" data-value="78" data-color="aqua" data-size="156" data-stroke="13" data-label="78" data-sub="/100"></div>
+                <div class="bb-card__stats">
+                  <div class="kv"><span class="kv__label c-green">Charged</span><b>+<span data-bind="bbCharged">54</span></b></div>
+                  <div class="kv"><span class="kv__label c-orange">Drained</span><b>−<span data-bind="bbDrained">26</span></b></div>
+                  <div class="kv"><span class="kv__label">Recovery</span><b><span data-bind="recovery">82</span>%</b></div>
+                  <div class="kv"><span class="kv__label">Fatigue</span><b><span data-bind="fatigue">32</span>%</b></div>
+                </div>
+              </div>
+              <div class="card__foot text-muted">Energy trend built from recovery, strain, sleep and activity. Tap for details.</div>
+            </section>
+
+            <!-- Heart rate -->
+            <section class="card card--medium hr-card" data-go="heart" role="button" tabindex="0" aria-label="Heart analytics">
+              <div class="card__head"><span class="card__label"><span class="heart-beat" data-heart><svg><use href="#i-heart"/></svg></span>HEART RATE</span><span class="badge badge--green" data-bind="hrStatus">Normal</span></div>
+              <div class="metric"><span class="metric__value" data-bind="hr">72</span><span class="metric__unit">BPM</span></div>
+              <canvas class="spark" data-spark="hr" height="56" aria-label="Live heart rate sparkline"></canvas>
+              <div class="card__row">
+                <div class="kv"><span class="kv__label">Resting</span><b><span data-bind="restingHr">62</span> BPM</b></div>
+                <div class="kv"><span class="kv__label">Today Max</span><b><span data-bind="hrMax">142</span> BPM</b></div>
+              </div>
+            </section>
+
+            <!-- Mini ECG -->
+            <section class="card card--medium ecg-card" data-go="ecg" role="button" tabindex="0" aria-label="Open ECG monitor">
+              <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-ecg"/></svg>LIVE ECG</span><span class="chip chip--xs"><span class="status-dot status-dot--live"></span><span data-bind="signalQualityText">Signal Excellent</span></span></div>
+              <div class="ecg-mini">
+                <canvas class="ecg-canvas" data-ecg="mini" aria-label="Live ECG strip"></canvas>
+                <div class="ecg-mini__overlay" data-bind-show="deviceDisconnected" hidden><svg><use href="#i-bluetooth"/></svg>No ECG signal</div>
+              </div>
+              <div class="card__row">
+                <div class="metric metric--sm"><span class="metric__value" data-bind="hr">72</span><span class="metric__unit">BPM</span></div>
+                <span class="text-muted small">Tap to open ECG Monitor <svg class="ico"><use href="#i-chevron-right"/></svg></span>
+              </div>
+            </section>
+
+            <!-- Recovery -->
+            <section class="card card--medium" data-go="recovery" role="button" tabindex="0" aria-label="Recovery details">
+              <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-leaf"/></svg>RECOVERY</span><span class="badge badge--green" data-bind="recoveryStatus">READY</span></div>
+              <div class="card__split">
+                <div class="ring" data-ring="recovery" data-value="82" data-color="green" data-size="84" data-stroke="8" data-label="82%" ></div>
+                <div><div class="metric metric--md"><span class="metric__value" data-bind="recovery">82</span><span class="metric__unit">%</span></div><p class="text-muted small">HRV <b data-bind="hrv">54</b> ms · Sleep <b data-bind="sleepTotal">7h 48m</b></p></div>
+              </div>
+            </section>
+
+            <!-- Fatigue -->
+            <section class="card card--medium" data-go="fatigue" role="button" tabindex="0" aria-label="Fatigue details">
+              <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-gauge"/></svg>FATIGUE</span><span class="badge badge--orange" data-bind="fatigueStatus">LOW</span></div>
+              <div class="card__split">
+                <div class="arc" data-arc="fatigue" data-value="32" data-color="orange" data-size="96"></div>
+                <div><div class="metric metric--md"><span class="metric__value" data-bind="fatigue">32</span><span class="metric__unit">/ 100</span></div><p class="text-muted small">Full recovery est. <b data-bind="fullRecoveryEta">7h 40m</b></p></div>
+              </div>
+            </section>
+
+            <!-- Compact tiles -->
+            <div class="tiles">
+              <button class="tile" data-go="temperature">
+                <span class="tile__label"><svg class="ico"><use href="#i-thermometer"/></svg>TEMP</span>
+                <span class="tile__value"><span data-bind="temp">36.7</span><small data-bind="tempUnit">°C</small></span>
+                <span class="tile__sub c-green" data-bind="tempStatus">Within baseline</span>
+                <canvas class="spark spark--tiny" data-spark="temp" height="28"></canvas>
+              </button>
+              <button class="tile" data-go="heart">
+                <span class="tile__label"><svg class="ico"><use href="#i-droplet"/></svg>SpO₂</span>
+                <span class="tile__value"><span data-bind="spo2">98</span><small>%</small></span>
+                <span class="tile__sub"><span class="ring ring--inline" data-ring="spo2" data-value="98" data-color="blue" data-size="34" data-stroke="4"></span>Oxygen</span>
+              </button>
+              <button class="tile" data-go="heart">
+                <span class="tile__label"><svg class="ico"><use href="#i-activity"/></svg>HRV</span>
+                <span class="tile__value"><span data-bind="hrv">54</span><small>ms</small></span>
+                <span class="tile__sub c-green"><svg class="ico"><use href="#i-trend-up"/></svg>↑ 8% · above 7-day avg</span>
+              </button>
+              <button class="tile" data-go="heart">
+                <span class="tile__label"><svg class="ico"><use href="#i-wind"/></svg>RESPIRATION</span>
+                <span class="tile__value"><span data-bind="resp">15</span><small>br/min</small></span>
+                <span class="tile__sub">Steady rhythm</span>
+              </button>
+            </div>
+
+            <!-- Activity row -->
+            <section class="card activity-row" data-go="history" role="button" tabindex="0" aria-label="Today's activity">
+              <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-activity"/></svg>TODAY'S ACTIVITY</span><span class="text-muted small">Goal <span data-bind="stepGoalFmt">10,000</span></span></div>
+              <div class="activity-row__grid">
+                <div class="stat"><svg class="stat__icon c-blue"><use href="#i-steps"/></svg><b data-bind="stepsFmt">8,642</b><span>Steps</span><div class="progress"><i data-bind-width="stepsPct"></i></div></div>
+                <div class="stat"><svg class="stat__icon c-orange"><use href="#i-flame"/></svg><b data-bind="calories">624</b><span>kcal</span></div>
+                <div class="stat"><svg class="stat__icon c-aqua"><use href="#i-route"/></svg><b data-bind="distanceFmt">6.4</b><span data-bind="distUnit">km</span></div>
+                <div class="stat"><svg class="stat__icon c-green"><use href="#i-timer"/></svg><b data-bind="activeMinutes">74</b><span>min</span></div>
+              </div>
+            </section>
+
+            <!-- Stress + Training load -->
+            <section class="card card--medium" data-go="recovery" role="button" tabindex="0" aria-label="Stress">
+              <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-brain"/></svg>STRESS</span><span class="badge badge--green" data-bind="stressStatus">LOW</span></div>
+              <div class="metric metric--md"><span class="metric__value" data-bind="stress">24</span><span class="metric__unit">/ 100</span></div>
+              <div class="bar"><i data-bind-width="stress" class="bar__fill bar__fill--green"></i></div>
+              <p class="text-muted small mt-sm">Autonomic balance looks calm today.</p>
+            </section>
+            <section class="card card--medium" data-go="analytics" role="button" tabindex="0" aria-label="Training load">
+              <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-target"/></svg>TRAINING LOAD</span><span class="badge badge--aqua" data-bind="trainingLoadStatus">Optimal</span></div>
+              <div class="metric metric--md"><span class="metric__value" data-bind="trainingLoad">68</span><span class="metric__unit">7-day</span></div>
+              <div class="load-scale"><span class="load-scale__seg"></span><span class="load-scale__seg load-scale__seg--opt"></span><span class="load-scale__seg"></span><span class="load-scale__seg"></span><i class="load-scale__marker" data-bind-left="trainingLoad"></i></div>
+              <div class="load-scale__labels"><span>Low</span><span>Optimal</span><span>High</span><span>Very High</span></div>
+            </section>
+
+            <!-- Today's route preview -->
+            <section class="card map-preview-card" data-go="history" role="button" tabindex="0" aria-label="Today's route">
+              <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-map"/></svg>TODAY'S ROUTE</span><span class="text-muted small">Morning Walk</span></div>
+              <div class="map-preview" id="map-home" data-map="home"><div class="map-skeleton"><span></span>Loading map…</div></div>
+              <div class="card__row card__row--3">
+                <div class="kv"><b><span data-bind="todayRouteDistance">6.4</span> <span data-bind="distUnit">km</span></b><span class="kv__label">Distance</span></div>
+                <div class="kv"><b>74 min</b><span class="kv__label">Duration</span></div>
+                <div class="kv"><b>128 avg BPM</b><span class="kv__label">Heart Rate</span></div>
+              </div>
+            </section>
+
+            <!-- Sleep teaser -->
+            <section class="card card--medium" data-go="sleep" role="button" tabindex="0" aria-label="Sleep">
+              <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-moon"/></svg>SLEEP</span><span class="badge badge--purple">RESTORATIVE</span></div>
+              <div class="card__split">
+                <div class="ring" data-ring="sleep-home" data-value="86" data-color="purple" data-size="84" data-stroke="8" data-label="86"></div>
+                <div><div class="metric metric--md"><span class="metric__value">7h 48m</span></div><p class="text-muted small">10:54 PM → 7:08 AM · Deep 1h 48m</p></div>
+              </div>
+            </section>
+
+            <!-- Insights teaser -->
+            <section class="card card--medium insight-teaser" data-go="insights" role="button" tabindex="0" aria-label="Insights">
+              <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-sparkles"/></svg>INSIGHTS</span><span class="text-muted small">View all</span></div>
+              <ul class="insight-mini" data-insights-mini></ul>
+            </section>
+          </div>
+          <p class="disclaimer-line text-muted">Wellness insights only — not a medical diagnosis.</p>
+        </div>
+      </section>
+
+      <!-- ================= LIVE ECG ================= -->
+      <section class="screen" data-screen="ecg">
+        <header class="screen-header">
+          <button class="icon-btn" data-back aria-label="Back"><svg><use href="#i-chevron-left"/></svg></button>
+          <h1 class="screen-title">LIVE ECG</h1>
+          <div class="screen-header__actions"><button class="icon-btn" data-go="device" aria-label="Jacket"><svg><use href="#i-shirt"/></svg></button></div>
+        </header>
+        <div class="page">
+          <div class="chip-row">
+            <span class="chip chip--xs"><span class="status-dot" data-bind-class="deviceDot"></span><span data-bind="deviceStatusShort">Jacket Connected</span></span>
+            <span class="chip chip--xs"><svg class="ico"><use href="#i-signal"/></svg><span data-bind="signalQualityText">Signal Excellent</span></span>
+            <span class="chip chip--xs chip--rec" data-bind-show="ecgRecording" hidden><span class="status-dot status-dot--rec"></span>Recording</span>
+          </div>
+
+          <div class="ecg-monitor card">
+            <div class="ecg-monitor__top">
+              <div class="metric"><span class="heart-beat" data-heart><svg><use href="#i-heart"/></svg></span><span class="metric__value" data-bind="hr">72</span><span class="metric__unit">BPM</span></div>
+              <div class="ecg-monitor__specs"><span>25 mm/s</span><span>10 mm/mV</span><span>Lead II</span></div>
+            </div>
+            <div class="ecg-main">
+              <canvas class="ecg-canvas" data-ecg="main" aria-label="Live ECG monitor"></canvas>
+              <div class="ecg-main__overlay" data-bind-show="deviceDisconnected" hidden>
+                <svg><use href="#i-bluetooth"/></svg>
+                <b>No ECG signal</b><span>Check jacket connection and electrode contact.</span>
+                <button class="btn btn--secondary btn--sm" data-device="reconnect">Reconnect Jacket</button>
+              </div>
+            </div>
+            <div class="ecg-monitor__bottom">
+              <span class="ecg-timer" data-bind="ecgTimer">00:00:00</span>
+              <span class="text-muted small" data-bind="ecgStateText">Ready to record</span>
+            </div>
+          </div>
+
+          <div class="ecg-controls" data-ecg-controls data-state="idle">
+            <button class="btn btn--primary btn--block" data-ecg-action="start"><svg><use href="#i-play"/></svg>Start Recording</button>
+            <button class="btn btn--secondary" data-ecg-action="pause"><svg><use href="#i-pause"/></svg>Pause</button>
+            <button class="btn btn--secondary" data-ecg-action="resume"><svg><use href="#i-play"/></svg>Resume</button>
+            <button class="btn btn--primary" data-ecg-action="save"><svg><use href="#i-check"/></svg>Save</button>
+            <button class="btn btn--danger-ghost" data-ecg-action="stop"><svg><use href="#i-stop"/></svg>Stop</button>
+          </div>
+
+          <div class="stat-grid">
+            <div class="stat-box"><span>Average HR</span><b><span data-bind="ecgAvg">71</span> <small>BPM</small></b></div>
+            <div class="stat-box"><span>Minimum</span><b><span data-bind="ecgMin">64</span> <small>BPM</small></b></div>
+            <div class="stat-box"><span>Maximum</span><b><span data-bind="ecgMaxHr">84</span> <small>BPM</small></b></div>
+            <div class="stat-box"><span>Signal Quality</span><b data-bind="signalQuality">Excellent</b></div>
+            <div class="stat-box"><span>Noise</span><b data-bind="noiseLevel">Low</b></div>
+            <div class="stat-box"><span>Jacket Battery</span><b><span data-bind="jacketBattery">82</span>%</b></div>
+          </div>
+
+          <div class="section-head"><h2>ECG History</h2><button class="btn btn--ghost btn--sm" data-action="export-ecg-all"><svg><use href="#i-download"/></svg>Export CSV</button></div>
+          <div class="ecg-history" data-ecg-history></div>
+          <p class="disclaimer-line text-muted">Demo ECG rendering for interface evaluation. Not a diagnostic device.</p>
+        </div>
+      </section>
+
+      <!-- ================= ACTIVITY HUB ================= -->
+      <section class="screen" data-screen="activity">
+        <header class="screen-header screen-header--main">
+          <h1 class="screen-title">Activity</h1>
+          <div class="screen-header__actions"><button class="icon-btn" data-go="history" aria-label="History"><svg><use href="#i-list"/></svg></button></div>
+        </header>
+        <div class="page">
+          <section class="card card--glow activity-start">
+            <div class="hero__bg" aria-hidden="true"></div>
+            <div class="hero__content">
+              <p class="eyebrow">READY WHEN YOU ARE</p>
+              <h2 class="hero__title">Start an activity</h2>
+              <p class="hero__sub">Live ECG, GPS route, pace and body response are recorded together.</p>
+              <button class="btn btn--cta btn--block mt-md" data-action="start-activity"><svg><use href="#i-play"/></svg>START ACTIVITY</button>
+            </div>
+          </section>
+          <div class="card" data-bind-show="activityInProgress" hidden>
+            <div class="card__head"><span class="card__label"><span class="status-dot status-dot--live"></span>ACTIVITY IN PROGRESS</span><button class="btn btn--sm btn--secondary" data-go="activity-live">Open</button></div>
+            <div class="metric metric--md"><span class="metric__value" data-bind="actTimer">00:00:00</span><span class="metric__unit" data-bind="actName">Walk</span></div>
+          </div>
+          <h2 class="section-title">Activity types</h2>
+          <div class="activity-types" data-activity-types></div>
+          <div class="section-head"><h2>This week</h2><span class="text-muted small"><span data-bind="weekTotal">38.4</span> <span data-bind="distUnit">km</span> total</span></div>
+          <div class="card"><div class="chart chart--sm" data-chart="weekDistance"></div></div>
+          <div class="section-head"><h2>Recent</h2><button class="btn btn--ghost btn--sm" data-go="history">See all</button></div>
+          <div class="history-list" data-history-list="recent" data-limit="3"></div>
+        </div>
+      </section>
+
+      <!-- ================= LIVE ACTIVITY ================= -->
+      <section class="screen screen--immersive" data-screen="activity-live" data-nav-hidden>
+        <div class="live">
+          <div class="live__map" id="map-live" data-map="live"><div class="map-skeleton"><span></span>Acquiring GPS…</div></div>
+          <div class="live__map-top">
+            <button class="icon-btn icon-btn--solid" data-go="home" aria-label="Minimize"><svg><use href="#i-chevron-down"/></svg></button>
+            <span class="chip chip--solid"><span class="status-dot status-dot--live"></span><span data-bind="gpsChip">GPS Strong</span></span>
+            <button class="chip chip--solid" data-action="sim-speed" aria-label="Simulation speed">Demo <span data-bind="simSpeed">×1</span></button>
+            <button class="icon-btn icon-btn--solid" data-go="map" aria-label="Open map"><svg><use href="#i-expand"/></svg></button>
+          </div>
+          <div class="live__panel">
+            <div class="live__title-row">
+              <div><p class="eyebrow" data-bind="actType">WALKING</p><h1 class="live__title" data-bind="actName">Morning Walk</h1></div>
+              <span class="badge" data-bind="actStateText" data-bind-class="actStateBadge">ACTIVE</span>
+            </div>
+            <div class="live__timer" data-bind="actTimer">00:00:00</div>
+            <div class="live__grid">
+              <div class="live__stat"><b><span data-bind="actDistance">0.00</span></b><span><span data-bind="distUnit">km</span> · Distance</span></div>
+              <div class="live__stat"><b data-bind="actPace">—</b><span>Current pace</span></div>
+              <div class="live__stat"><b data-bind="actAvgPace">—</b><span>Avg pace</span></div>
+              <div class="live__stat live__stat--hr"><b><span class="heart-beat heart-beat--sm" data-heart><svg><use href="#i-heart"/></svg></span><span data-bind="hr">72</span></b><span>BPM</span></div>
+              <div class="live__stat"><b data-bind="actCalories">0</b><span>kcal</span></div>
+              <div class="live__stat"><b><span data-bind="actElevation">0</span> m</b><span>Elevation</span></div>
+              <div class="live__stat"><b><span data-bind="temp">36.7</span><span data-bind="tempUnit">°C</span></b><span>Body temp</span></div>
+              <div class="live__stat"><b><span data-bind="fatigue">32</span>%</b><span>Fatigue</span></div>
+              <div class="live__stat"><b data-bind="trainingLoad">68</b><span>Training load</span></div>
+              <div class="live__stat"><b data-bind="bodyBattery">78</b><span>Body battery</span></div>
+              <div class="live__stat"><b data-bind="gpsStrength">Strong</b><span>GPS</span></div>
+              <div class="live__stat"><b data-bind="actSteps">0</b><span>Steps</span></div>
+            </div>
+            <div class="live__controls" data-act-controls data-state="active">
+              <button class="icon-btn icon-btn--lg" data-act="lock" aria-label="Lock controls"><svg><use href="#i-lock"/></svg></button>
+              <button class="btn btn--secondary btn--lg" data-act="pause"><svg><use href="#i-pause"/></svg>Pause</button>
+              <button class="btn btn--primary btn--lg" data-act="resume"><svg><use href="#i-play"/></svg>Resume</button>
+              <button class="btn btn--danger btn--lg" data-act="finish"><svg><use href="#i-flag"/></svg>Finish</button>
+              <button class="icon-btn icon-btn--lg" data-go="ecg" aria-label="Open ECG"><svg><use href="#i-ecg"/></svg></button>
+            </div>
+            <div class="live__lock" data-act-lock hidden><svg><use href="#i-lock"/></svg><span>Controls locked</span><button class="btn btn--secondary btn--sm" data-act="unlock">Hold to unlock</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= LIVE MAP ================= -->
+      <section class="screen screen--immersive" data-screen="map" data-nav-hidden>
+        <div class="fullmap">
+          <div class="fullmap__map" id="map-full" data-map="full"><div class="map-skeleton"><span></span>Loading map…</div></div>
+          <div class="fullmap__top">
+            <button class="icon-btn icon-btn--solid" data-back aria-label="Back"><svg><use href="#i-chevron-left"/></svg></button>
+            <div class="chip-row">
+              <span class="chip chip--solid"><span class="status-dot status-dot--live" data-bind-class="gpsDot"></span><span data-bind="gpsChipLong">GPS Connected</span></span>
+              <span class="chip chip--solid"><svg class="ico"><use href="#i-locate"/></svg>Accuracy ±5m</span>
+            </div>
+          </div>
+          <div class="fullmap__controls">
+            <button class="map-ctl" data-map-ctl="recenter" aria-label="Recenter"><svg><use href="#i-locate"/></svg></button>
+            <button class="map-ctl" data-map-ctl="zoom-in" aria-label="Zoom in"><svg><use href="#i-plus"/></svg></button>
+            <button class="map-ctl" data-map-ctl="zoom-out" aria-label="Zoom out"><svg><use href="#i-minus"/></svg></button>
+            <button class="map-ctl" data-map-ctl="layers" aria-label="Map layers"><svg><use href="#i-layers"/></svg></button>
+            <button class="map-ctl" data-map-ctl="overview" aria-label="Route overview"><svg><use href="#i-expand"/></svg></button>
+          </div>
+          <div class="fullmap__panel card">
+            <div class="fullmap__panel-head"><b data-bind="actName">Morning Walk</b><span class="badge" data-bind="actStateText" data-bind-class="actStateBadge">ACTIVE</span></div>
+            <div class="fullmap__stats">
+              <div><b data-bind="actTimer">00:00:00</b><span>Time</span></div>
+              <div><b><span data-bind="actDistance">0.00</span> <small data-bind="distUnit">km</small></b><span>Distance</span></div>
+              <div><b data-bind="actPace">—</b><span>Pace</span></div>
+              <div><b><span data-bind="hr">72</span> <small>bpm</small></b><span>Heart rate</span></div>
+              <div><b data-bind="bodyBattery">78</b><span>Body battery</span></div>
+            </div>
+            <div class="fullmap__actions">
+              <button class="btn btn--secondary btn--sm" data-go="activity-live">Activity view</button>
+              <button class="btn btn--primary btn--sm" data-action="start-activity" data-bind-show="noActivity">Start activity</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ACTIVITY SUMMARY ================= -->
+      <section class="screen" data-screen="activity-summary">
+        <header class="screen-header">
+          <button class="icon-btn" data-back aria-label="Back"><svg><use href="#i-chevron-left"/></svg></button>
+          <h1 class="screen-title">ACTIVITY COMPLETE</h1>
+          <div class="screen-header__actions"><button class="icon-btn" data-sum="share" aria-label="Share"><svg><use href="#i-share"/></svg></button></div>
+        </header>
+        <div class="page" data-summary-root>
+          <div class="summary__hero card card--glow">
+            <div class="hero__bg" aria-hidden="true"></div>
+            <span class="brand-logo brand-logo--xs summary__brand"><img alt="Biotex" hidden><svg class="brand-logo__svg"><use href="#logo-mark"/></svg></span>
+            <div class="hero__content">
+              <p class="eyebrow" data-sum-field="typeLabel">WALKING</p>
+              <h2 class="hero__title" data-sum-field="name">Morning Walk</h2>
+              <p class="hero__sub" data-sum-field="dateText">Today · 8:10 AM</p>
+              <div class="summary__big">
+                <div><b><span data-sum-field="distance">6.24</span></b><span data-bind="distUnit">km</span></div>
+                <div><b data-sum-field="duration">48:16</b><span>Duration</span></div>
+                <div><b data-sum-field="avgPace">7:44</b><span>Avg pace</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="map-preview map-preview--tall" id="map-summary" data-map="summary"><div class="map-skeleton"><span></span>Loading route…</div></div>
+          <div class="stat-grid stat-grid--3">
+            <div class="stat-box"><span>Calories</span><b><span data-sum-field="calories">512</span> <small>kcal</small></b></div>
+            <div class="stat-box"><span>Average HR</span><b><span data-sum-field="avgHr">128</span> <small>BPM</small></b></div>
+            <div class="stat-box"><span>Maximum HR</span><b><span data-sum-field="maxHr">158</span> <small>BPM</small></b></div>
+            <div class="stat-box"><span>Elevation gain</span><b><span data-sum-field="elevation">82</span> <small>m</small></b></div>
+            <div class="stat-box"><span>Steps</span><b data-sum-field="steps">8,966</b></div>
+            <div class="stat-box"><span>Temperature avg</span><b data-sum-field="avgTemp">36.9°C</b></div>
+            <div class="stat-box"><span>Fatigue change</span><b class="c-orange" data-sum-field="fatigueDelta">+9</b></div>
+            <div class="stat-box"><span>Body battery change</span><b class="c-aqua" data-sum-field="bbDelta">−14</b></div>
+            <div class="stat-box"><span>Training load</span><b data-sum-field="load">68</b></div>
+          </div>
+          <div class="card"><div class="card__head"><span class="card__label">HEART RATE</span><span class="text-muted small">bpm</span></div><div class="chart" data-chart="sumHr"></div></div>
+          <div class="card"><div class="card__head"><span class="card__label">PACE</span><span class="text-muted small">min/km</span></div><div class="chart" data-chart="sumPace"></div></div>
+          <div class="card"><div class="card__head"><span class="card__label">ELEVATION</span><span class="text-muted small">m</span></div><div class="chart" data-chart="sumElev"></div></div>
+          <div class="card"><div class="card__head"><span class="card__label">BODY TEMPERATURE</span><span class="text-muted small">°C</span></div><div class="chart" data-chart="sumTemp"></div></div>
+          <div class="card"><div class="card__head"><span class="card__label">FATIGUE</span><span class="text-muted small">/100</span></div><div class="chart" data-chart="sumFatigue"></div></div>
+          <div class="card"><div class="card__head"><span class="card__label">HEART RATE ZONES</span><span class="text-muted small">time in zone</span></div><div class="zones" data-zones="summary"></div></div>
+          <div class="summary__actions">
+            <button class="btn btn--primary btn--block" data-sum="save"><svg><use href="#i-check"/></svg>Save Activity</button>
+            <div class="btn-row">
+              <button class="btn btn--secondary" data-sum="share"><svg><use href="#i-share"/></svg>Share</button>
+              <button class="btn btn--secondary" data-sum="export"><svg><use href="#i-download"/></svg>CSV</button>
+              <button class="btn btn--danger-ghost" data-sum="delete"><svg><use href="#i-trash"/></svg>Delete</button>
+            </div>
+            <button class="btn btn--ghost btn--block" data-go="home">Return Home</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= BODY BATTERY ================= -->
+      <section class="screen" data-screen="body-battery">
+        <header class="screen-header"><button class="icon-btn" data-back aria-label="Back"><svg><use href="#i-chevron-left"/></svg></button><h1 class="screen-title">BODY BATTERY</h1><div class="screen-header__actions"></div></header>
+        <div class="page">
+          <div class="detail-hero">
+            <div class="ring ring--hero" data-ring="bbDetail" data-value="78" data-color="aqua" data-size="180" data-stroke="14" data-label="78" data-sub="/100"></div>
+            <div class="detail-hero__text"><span class="badge badge--aqua" data-bind="bodyBatteryStatus">HIGH ENERGY</span><div class="metric"><span class="metric__value" data-bind="bodyBattery">78</span><span class="metric__unit">/ 100</span></div><p class="text-muted">Energy available for the rest of your day.</p></div>
+          </div>
+          <div class="card"><div class="card__head"><span class="card__label">24-HOUR ENERGY</span><span class="text-muted small">12 AM – 11 PM</span></div><div class="chart" data-chart="bb24"></div>
+            <ul class="timeline" data-timeline="bb"></ul>
+          </div>
+          <div class="stat-grid stat-grid--2">
+            <div class="stat-box stat-box--green"><span>Charged</span><b>+<span data-bind="bbCharged">54</span></b><small>Sleep +34 · Rest +20</small></div>
+            <div class="stat-box stat-box--orange"><span>Drained</span><b>−<span data-bind="bbDrained">26</span></b><small>Workout −18 · Daily stress −8</small></div>
+          </div>
+          <div class="card">
+            <h3 class="card__label">Recovery contribution</h3>
+            <div class="hbar"><span>Sleep</span><div class="bar"><i class="bar__fill bar__fill--purple" style="width:68%"></i></div><b>+34</b></div>
+            <div class="hbar"><span>Rest</span><div class="bar"><i class="bar__fill bar__fill--green" style="width:40%"></i></div><b>+20</b></div>
+            <h3 class="card__label mt-md">Energy use</h3>
+            <div class="hbar"><span>Workout</span><div class="bar"><i class="bar__fill bar__fill--orange" style="width:36%"></i></div><b>−18</b></div>
+            <div class="hbar"><span>Daily stress</span><div class="bar"><i class="bar__fill bar__fill--red" style="width:16%"></i></div><b>−8</b></div>
+          </div>
+          <p class="note"><svg><use href="#i-info"/></svg>Your body battery reflects simulated energy trends using recovery, strain, sleep and daily activity.</p>
+        </div>
+      </section>
+
+      <!-- ================= FATIGUE ================= -->
+      <section class="screen" data-screen="fatigue">
+        <header class="screen-header"><button class="icon-btn" data-back aria-label="Back"><svg><use href="#i-chevron-left"/></svg></button><h1 class="screen-title">FATIGUE</h1><div class="screen-header__actions"></div></header>
+        <div class="page">
+          <div class="detail-hero detail-hero--arc">
+            <div class="arc arc--hero" data-arc="fatigueDetail" data-value="32" data-color="orange" data-size="220" data-label="32" data-sub="/ 100"></div>
+            <div class="detail-hero__text"><span class="badge badge--orange" data-bind="fatigueStatusLong">LOW FATIGUE</span><p class="text-muted">Estimated full recovery in <b data-bind="fullRecoveryEta">7h 40m</b></p></div>
+          </div>
+          <div class="card">
+            <h3 class="card__label">Contributors</h3>
+            <div class="hbar"><span>HRV</span><div class="bar"><i class="bar__fill bar__fill--green" data-anim-width="82"></i></div><b>82%</b></div>
+            <div class="hbar"><span>Sleep Recovery</span><div class="bar"><i class="bar__fill bar__fill--purple" data-anim-width="88"></i></div><b>88%</b></div>
+            <div class="hbar"><span>Physical Strain</span><div class="bar"><i class="bar__fill bar__fill--orange" data-anim-width="42"></i></div><b>42%</b></div>
+            <div class="hbar"><span>Body Temperature</span><div class="bar"><i class="bar__fill bar__fill--aqua" data-anim-width="96"></i></div><b>96%</b></div>
+            <div class="hbar"><span>Activity Duration</span><div class="bar"><i class="bar__fill bar__fill--blue" data-anim-width="68"></i></div><b>68%</b></div>
+            <div class="hbar"><span>Resting HR</span><div class="bar"><i class="bar__fill bar__fill--green" data-anim-width="87"></i></div><b>87%</b></div>
+          </div>
+          <div class="card"><div class="card__head"><span class="card__label">FATIGUE TREND</span><span class="text-muted small">7 days</span></div><div class="chart" data-chart="fatigue7"></div></div>
+          <div class="card">
+            <h3 class="card__label">Insights</h3>
+            <ul class="insight-mini">
+              <li><svg class="c-green"><use href="#i-trend-down"/></svg>Fatigue is lower than your weekly average.</li>
+              <li><svg class="c-purple"><use href="#i-moon"/></svg>Your overnight recovery was strong.</li>
+            </ul>
+          </div>
+          <p class="note"><svg><use href="#i-info"/></svg>Fatigue is a normalised 0–100 wellness estimate from HRV, sleep, strain, temperature and heart-rate trends. It is not a clinically validated diagnostic score.</p>
+        </div>
+      </section>
+
+      <!-- ================= RECOVERY ================= -->
+      <section class="screen" data-screen="recovery">
+        <header class="screen-header"><button class="icon-btn" data-back aria-label="Back"><svg><use href="#i-chevron-left"/></svg></button><h1 class="screen-title">RECOVERY</h1><div class="screen-header__actions"></div></header>
+        <div class="page">
+          <div class="detail-hero">
+            <div class="ring ring--hero" data-ring="recDetail" data-value="82" data-color="green" data-size="180" data-stroke="14" data-label="82%"></div>
+            <div class="detail-hero__text"><span class="badge badge--green" data-bind="recoveryStatusLong">READY TO TRAIN</span><p class="text-muted">Your body shows a strong readiness to take on load today.</p></div>
+          </div>
+          <div class="stat-grid stat-grid--3">
+            <div class="stat-box"><span>HRV</span><b><span data-bind="hrv">54</span> <small>ms</small></b></div>
+            <div class="stat-box"><span>Resting HR</span><b><span data-bind="restingHr">61</span> <small>BPM</small></b></div>
+            <div class="stat-box"><span>Sleep</span><b data-bind="sleepTotal">7h 48m</b></div>
+            <div class="stat-box"><span>Stress</span><b data-bind="stress">22</b></div>
+            <div class="stat-box"><span>Body Battery</span><b data-bind="bodyBattery">78</b></div>
+            <div class="stat-box"><span>Temp. deviation</span><b data-bind="tempDeviation">+0.1°C</b></div>
+            <div class="stat-box"><span>Respiration</span><b><span data-bind="resp">15</span><small>/min</small></b></div>
+          </div>
+          <div class="card"><div class="card__head"><span class="card__label">7-DAY RECOVERY</span><span class="text-muted small">%</span></div><div class="chart" data-chart="recovery7"></div></div>
+          <div class="card">
+            <h3 class="card__label">Recovery categories</h3>
+            <div class="legend-rows">
+              <div><i class="c-bg-green"></i>85–100 Excellent</div><div><i class="c-bg-aqua"></i>70–84 Ready</div><div><i class="c-bg-orange"></i>50–69 Moderate</div><div><i class="c-bg-red"></i>Below 50 Recover</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= HEART ANALYTICS ================= -->
+      <section class="screen" data-screen="heart">
+        <header class="screen-header"><button class="icon-btn" data-back aria-label="Back"><svg><use href="#i-chevron-left"/></svg></button><h1 class="screen-title">HEART ANALYTICS</h1><div class="screen-header__actions"><button class="icon-btn" data-go="ecg" aria-label="Live ECG"><svg><use href="#i-ecg"/></svg></button></div></header>
+        <div class="page">
+          <div class="card hr-card">
+            <div class="card__head"><span class="card__label"><span class="heart-beat" data-heart><svg><use href="#i-heart"/></svg></span>CURRENT</span><span class="badge badge--green" data-bind="hrStatus">Normal</span></div>
+            <div class="metric"><span class="metric__value" data-bind="hr">72</span><span class="metric__unit">BPM</span></div>
+            <canvas class="spark" data-spark="hr" height="56"></canvas>
+          </div>
+          <div class="stat-grid stat-grid--4">
+            <div class="stat-box"><span>Resting HR</span><b><span data-bind="restingHr">61</span></b></div>
+            <div class="stat-box"><span>Daily Max</span><b><span data-bind="hrMax">142</span></b></div>
+            <div class="stat-box"><span>HRV</span><b><span data-bind="hrv">54</span> <small>ms</small></b></div>
+            <div class="stat-box"><span>Respiration</span><b><span data-bind="resp">15</span><small>/min</small></b></div>
+          </div>
+          <div class="card"><div class="card__head"><span class="card__label">24-HOUR HEART RATE</span><span class="text-muted small">bpm</span></div><div class="chart" data-chart="hr24"></div></div>
+          <div class="card"><div class="card__head"><span class="card__label">HEART RATE ZONES</span><span class="text-muted small">today</span></div><div class="zones" data-zones="today"></div></div>
+          <div class="card"><div class="card__head"><span class="card__label">RESTING HR TREND</span><span class="text-muted small">7 days</span></div><div class="chart chart--sm" data-chart="rhr7"></div></div>
+          <div class="card"><div class="card__head"><span class="card__label">HRV TREND</span><span class="text-muted small">7 days · ms</span></div><div class="chart chart--sm" data-chart="hrv7"></div></div>
+          <div class="card"><div class="card__head"><span class="card__label">HEART RATE DURING ACTIVITY</span><span class="text-muted small" data-bind="lastActivityName">Morning Walk</span></div><div class="chart chart--sm" data-chart="lastActHr"></div></div>
+          <div class="section-head"><h2>ECG sessions</h2><button class="btn btn--ghost btn--sm" data-go="ecg">Open monitor</button></div>
+          <div class="ecg-history" data-ecg-history></div>
+        </div>
+      </section>
+
+      <!-- ================= TEMPERATURE ================= -->
+      <section class="screen" data-screen="temperature">
+        <header class="screen-header"><button class="icon-btn" data-back aria-label="Back"><svg><use href="#i-chevron-left"/></svg></button><h1 class="screen-title">BODY TEMPERATURE</h1><div class="screen-header__actions"></div></header>
+        <div class="page">
+          <div class="card">
+            <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-thermometer"/></svg>CURRENT</span><span class="badge badge--green" data-bind="tempStatus">Within Baseline</span></div>
+            <div class="metric"><span class="metric__value" data-bind="temp">36.7</span><span class="metric__unit" data-bind="tempUnit">°C</span></div>
+            <div class="card__row">
+              <div class="kv"><span class="kv__label">Baseline</span><b data-bind="tempBaseline">36.6°C</b></div>
+              <div class="kv"><span class="kv__label">Deviation</span><b data-bind="tempDeviation">+0.1°C</b></div>
+            </div>
+          </div>
+          <div class="card"><div class="card__head"><span class="card__label">24-HOUR TREND</span><span class="text-muted small">baseline band shaded</span></div><div class="chart" data-chart="temp24"></div></div>
+          <div class="stat-grid stat-grid--3">
+            <div class="stat-box"><span>Minimum</span><b data-bind="tempMin">36.2°C</b></div>
+            <div class="stat-box"><span>Average</span><b data-bind="tempAvg">36.6°C</b></div>
+            <div class="stat-box"><span>Maximum</span><b data-bind="tempMax">37.3°C</b></div>
+          </div>
+          <p class="note"><svg><use href="#i-info"/></svg>Skin-surface temperature measured at the torso sensor and compensated for ambient conditions. Deviation is relative to your personal 14-day baseline.</p>
+        </div>
+      </section>
+
+      <!-- ================= SLEEP ================= -->
+      <section class="screen" data-screen="sleep">
+        <header class="screen-header"><button class="icon-btn" data-back aria-label="Back"><svg><use href="#i-chevron-left"/></svg></button><h1 class="screen-title">SLEEP</h1><div class="screen-header__actions"></div></header>
+        <div class="page">
+          <div class="detail-hero">
+            <div class="ring ring--hero" data-ring="sleepDetail" data-value="86" data-color="purple" data-size="180" data-stroke="14" data-label="86" data-sub="score"></div>
+            <div class="detail-hero__text"><span class="badge badge--purple">RESTORATIVE</span><div class="metric"><span class="metric__value">7h 48m</span></div><p class="text-muted">Time in bed 8h 14m · 10:54 PM → 7:08 AM</p></div>
+          </div>
+          <div class="card">
+            <div class="card__head"><span class="card__label">SLEEP STAGES</span><span class="text-muted small">10:54 PM – 7:08 AM</span></div>
+            <div class="hypno" data-hypno></div>
+            <div class="stage-legend">
+              <div><i class="st-awake"></i>Awake <b>26m</b></div><div><i class="st-rem"></i>REM <b>1h 42m</b></div><div><i class="st-light"></i>Light <b>4h 18m</b></div><div><i class="st-deep"></i>Deep <b>1h 48m</b></div>
+            </div>
+          </div>
+          <h2 class="section-title">Overnight</h2>
+          <div class="stat-grid stat-grid--3">
+            <div class="stat-box"><span>Resting HR</span><b>58 <small>BPM</small></b></div>
+            <div class="stat-box"><span>HRV</span><b>61 <small>ms</small></b></div>
+            <div class="stat-box"><span>Respiration</span><b>13<small>/min</small></b></div>
+            <div class="stat-box"><span>Temperature</span><b>36.3°C</b></div>
+            <div class="stat-box stat-box--green"><span>Recovery gain</span><b>+21%</b></div>
+            <div class="stat-box stat-box--aqua"><span>Body battery gain</span><b>+34</b></div>
+          </div>
+          <div class="card"><div class="card__head"><span class="card__label">SLEEP DURATION</span><span class="text-muted small">7 days · hours</span></div><div class="chart chart--sm" data-chart="sleep7"></div></div>
+        </div>
+      </section>
+
+      <!-- ================= ANALYTICS ================= -->
+      <section class="screen" data-screen="analytics">
+        <header class="screen-header screen-header--main"><h1 class="screen-title">Analytics</h1><div class="screen-header__actions"><button class="icon-btn" data-action="export-daily" aria-label="Export daily metrics"><svg><use href="#i-download"/></svg></button></div></header>
+        <div class="page">
+          <div class="tabs" role="tablist" data-tabs="analytics">
+            <button role="tab" aria-selected="true" data-tab="day">DAY</button>
+            <button role="tab" aria-selected="false" data-tab="week">WEEK</button>
+            <button role="tab" aria-selected="false" data-tab="month">MONTH</button>
+            <button role="tab" aria-selected="false" data-tab="year">YEAR</button>
+            <i class="tabs__indicator"></i>
+          </div>
+          <div class="card card--load">
+            <div class="card__head"><span class="card__label">TRAINING LOAD</span><span class="badge badge--aqua" data-bind="trainingLoadStatus">OPTIMAL</span></div>
+            <div class="card__split">
+              <div class="metric metric--md"><span class="metric__value" data-bind="trainingLoad">68</span><span class="metric__unit">current</span></div>
+              <div class="chart chart--xs" data-chart="load7"></div>
+            </div>
+            <div class="load-scale"><span class="load-scale__seg"></span><span class="load-scale__seg load-scale__seg--opt"></span><span class="load-scale__seg"></span><span class="load-scale__seg"></span><i class="load-scale__marker" data-bind-left="trainingLoad"></i></div>
+            <div class="load-scale__labels"><span>Low</span><span>Optimal</span><span>High</span><span>Very High</span></div>
+          </div>
+          <div class="analytics-grid" data-analytics-grid></div>
+        </div>
+      </section>
+
+      <!-- ================= INSIGHTS ================= -->
+      <section class="screen" data-screen="insights">
+        <header class="screen-header"><button class="icon-btn" data-back aria-label="Back"><svg><use href="#i-chevron-left"/></svg></button><h1 class="screen-title">INSIGHTS</h1><div class="screen-header__actions"></div></header>
+        <div class="page">
+          <div class="card card--glow insight-hero"><div class="hero__bg" aria-hidden="true"></div><div class="hero__content"><p class="eyebrow">TODAY'S READ</p><h2 class="hero__title">Suitable for moderate training</h2><p class="hero__sub">Recovery and HRV trends support a productive session; keep intensity below threshold if fatigue climbs.</p></div></div>
+          <div class="insight-list" data-insights></div>
+          <p class="note"><svg><use href="#i-info"/></svg>Insights are generated from simulated wellness trends for demonstration and are not medical diagnoses.</p>
+        </div>
+      </section>
+
+      <!-- ================= NOTIFICATIONS ================= -->
+      <section class="screen" data-screen="notifications">
+        <header class="screen-header"><button class="icon-btn" data-back aria-label="Back"><svg><use href="#i-chevron-left"/></svg></button><h1 class="screen-title">NOTIFICATIONS</h1><div class="screen-header__actions"><button class="btn btn--ghost btn--sm" data-notif="read-all">Mark all read</button><button class="icon-btn" data-notif="clear" aria-label="Clear all"><svg><use href="#i-trash"/></svg></button></div></header>
+        <div class="page" data-notif-root></div>
+      </section>
+
+      <!-- ================= DEVICE ================= -->
+      <section class="screen" data-screen="device">
+        <header class="screen-header"><button class="icon-btn" data-back aria-label="Back"><svg><use href="#i-chevron-left"/></svg></button><h1 class="screen-title">BIOTEX ECG JACKET</h1><div class="screen-header__actions"></div></header>
+        <div class="page">
+          <div class="device-hero card">
+            <div class="device-hero__visual" id="device-visual"><svg class="jacket jacket--sm" viewBox="0 0 200 260" aria-hidden="true"><use href="#jacket-shape"/></svg><span class="brand-logo brand-logo--xs device-hero__logo"><img alt="Biotex" hidden><svg class="brand-logo__svg"><use href="#logo-mark"/></svg></span></div>
+            <div class="device-hero__text">
+              <div class="chip chip--xs"><span class="status-dot" data-bind-class="deviceDot"></span><span data-bind="deviceStatusText">Connected</span></div>
+              <h2>BIOTEX ECG JACKET</h2>
+              <p class="text-muted small">Model BTX-J1 · Serial BTX-ECG-0427</p>
+              <div class="device-hero__btns">
+                <button class="btn btn--secondary btn--sm" data-device="reconnect" data-bind-show="deviceDisconnected" hidden><svg><use href="#i-refresh"/></svg>Reconnect</button>
+                <button class="btn btn--secondary btn--sm" data-device="disconnect" data-bind-show="deviceConnected"><svg><use href="#i-bluetooth"/></svg>Disconnect</button>
+                <button class="btn btn--secondary btn--sm" data-device="find"><svg><use href="#i-vibrate"/></svg>Find My Jacket</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card battery-card">
+            <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-battery"/></svg>JACKET BATTERY</span><button class="chip chip--xs chip--toggle" data-device="charge-toggle" aria-pressed="false"><svg class="ico"><use href="#i-charging"/></svg><span data-bind="chargeToggleText">Demo charging</span></button></div>
+            <div class="battery">
+              <div class="battery__shell" data-bind-class="batteryState"><i class="battery__fill" data-bind-width="jacketBattery"></i><span class="battery__bolt"><svg><use href="#i-zap"/></svg></span></div>
+              <div class="battery__text"><div class="metric metric--md"><span class="metric__value" data-bind="jacketBattery">82</span><span class="metric__unit">%</span></div><p class="text-muted small"><span data-bind="batteryEta">Estimated remaining 18h 40m</span><br>Last charged: Yesterday 9:20 PM</p></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="info-grid">
+              <div class="info-item"><svg><use href="#i-signal"/></svg><div><span>Signal</span><b data-bind="signalQuality">Excellent</b></div></div>
+              <div class="info-item"><svg><use href="#i-cpu"/></svg><div><span>Firmware</span><b data-bind="firmware">v1.0.8</b></div></div>
+              <div class="info-item"><svg><use href="#i-bluetooth"/></svg><div><span>Bluetooth</span><b data-bind="btStatus">Connected</b></div></div>
+              <div class="info-item"><svg><use href="#i-gps"/></svg><div><span>GPS</span><b data-bind="gpsStatus">Active</b></div></div>
+              <div class="info-item"><svg><use href="#i-ecg"/></svg><div><span>ECG Signal</span><b data-bind="signalQuality">Excellent</b></div></div>
+              <div class="info-item"><svg><use href="#i-refresh"/></svg><div><span>Last Sync</span><b data-bind="lastSync">Just now</b></div></div>
+            </div>
+          </div>
+
+          <div class="card"><h3 class="card__label">Sensors</h3><ul class="sensor-list" data-sensor-list="device"></ul></div>
+
+          <div class="action-grid">
+            <button class="action-tile" data-device="calibrate"><svg><use href="#i-sliders"/></svg><span>Calibrate Sensors</span></button>
+            <button class="action-tile" data-device="reconnect"><svg><use href="#i-refresh"/></svg><span>Reconnect</span></button>
+            <button class="action-tile" data-device="disconnect"><svg><use href="#i-bluetooth"/></svg><span>Disconnect</span></button>
+            <button class="action-tile" data-device="firmware"><svg><use href="#i-cpu"/></svg><span>Firmware Update</span></button>
+            <button class="action-tile" data-device="find"><svg><use href="#i-vibrate"/></svg><span>Find My Jacket</span></button>
+            <button class="action-tile" data-device="info"><svg><use href="#i-info"/></svg><span>Device Information</span></button>
+            <button class="action-tile" data-device="diagnostic"><svg><use href="#i-stethoscope"/></svg><span>Diagnostic Check</span></button>
+            <button class="action-tile" data-action="demo-low-battery"><svg><use href="#i-alert"/></svg><span>Simulate Low Battery</span></button>
+          </div>
+          <div class="card" data-device-progress hidden>
+            <div class="card__head"><span class="card__label" data-device-progress-title>Calibrating</span><span class="text-muted small" data-device-progress-pct>0%</span></div>
+            <div class="progress progress--lg"><i data-device-progress-bar></i></div>
+            <p class="text-muted small mt-sm" data-device-progress-text>Preparing…</p>
+            <ul class="diag-list" data-diag-list hidden></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= PROFILE ================= -->
+      <section class="screen" data-screen="profile">
+        <header class="screen-header screen-header--main"><h1 class="screen-title">Profile</h1><div class="screen-header__actions"><button class="icon-btn" data-go="settings" aria-label="Settings"><svg><use href="#i-settings"/></svg></button></div></header>
+        <div class="page">
+          <div class="profile-hero card">
+            <div class="avatar avatar--lg"><span data-bind="initials">L</span></div>
+            <div><h2 data-bind="userName">Dr. Leroy</h2><p class="text-muted small">Biotex Life member since 2026 · <span data-bind="fitnessGoal">Improve endurance</span></p></div>
+            <button class="icon-btn" data-profile-edit="name" aria-label="Edit name"><svg><use href="#i-edit"/></svg></button>
+          </div>
+          <div class="stat-grid stat-grid--3 profile-stats">
+            <div class="stat-box"><span>Recovery</span><b><span data-bind="recovery">82</span>%</b></div>
+            <div class="stat-box"><span>Weekly distance</span><b><span data-bind="weekTotal">38.4</span> <small data-bind="distUnit">km</small></b></div>
+            <div class="stat-box"><span>ECG sessions</span><b data-bind="ecgCount">1</b></div>
+          </div>
+          <h2 class="section-title">Body profile</h2>
+          <div class="card list-card" data-profile-list="body"></div>
+          <h2 class="section-title">Goals & training</h2>
+          <div class="card list-card" data-profile-list="goals"></div>
+          <h2 class="section-title">Units</h2>
+          <div class="card list-card" data-profile-list="units"></div>
+          <h2 class="section-title">Devices & data</h2>
+          <div class="card list-card">
+            <button class="row" data-go="device"><svg class="row__icon"><use href="#i-shirt"/></svg><span class="row__text"><b>Connected devices</b><span>BIOTEX ECG JACKET · <span data-bind="deviceStatusText">Connected</span></span></span><svg class="row__chev"><use href="#i-chevron-right"/></svg></button>
+            <button class="row" data-go="notifications"><svg class="row__icon"><use href="#i-bell"/></svg><span class="row__text"><b>Notifications</b><span data-bind="notifSummary">Sensor alerts and reports enabled</span></span><svg class="row__chev"><use href="#i-chevron-right"/></svg></button>
+            <button class="row" data-profile-edit="privacy"><svg class="row__icon"><use href="#i-shield"/></svg><span class="row__text"><b>Privacy</b><span data-bind="privacyText">Data stays on this device</span></span><svg class="row__chev"><use href="#i-chevron-right"/></svg></button>
+            <button class="row" data-profile-edit="emergency"><svg class="row__icon"><use href="#i-phone"/></svg><span class="row__text"><b>Emergency contact</b><span data-bind="emergencyText">Not set</span></span><svg class="row__chev"><use href="#i-chevron-right"/></svg></button>
+            <button class="row" data-action="export-daily"><svg class="row__icon"><use href="#i-download"/></svg><span class="row__text"><b>Data export</b><span>Daily metrics, activities and ECG sessions (CSV)</span></span><svg class="row__chev"><use href="#i-chevron-right"/></svg></button>
+            <button class="row" data-action="about"><svg class="row__icon"><use href="#i-info"/></svg><span class="row__text"><b>About Biotex Life</b><span>Version 1.0 · Biotex Life Solutions</span></span><svg class="row__chev"><use href="#i-chevron-right"/></svg></button>
+          </div>
+          <div class="profile-brand"><span class="brand-logo brand-logo--md"><img alt="Biotex" hidden><svg class="brand-logo__svg" aria-label="Biotex Life"><use href="#logo-full"/></svg></span><p class="text-muted small">Connected Human Performance</p></div>
+        </div>
+      </section>
+
+      <!-- ================= SETTINGS ================= -->
+      <section class="screen" data-screen="settings">
+        <header class="screen-header"><button class="icon-btn" data-back aria-label="Back"><svg><use href="#i-chevron-left"/></svg></button><h1 class="screen-title">SETTINGS</h1><div class="screen-header__actions"></div></header>
+        <div class="page">
+          <h2 class="section-title">Sync & tracking</h2>
+          <div class="card list-card" data-settings-group="sync"></div>
+          <h2 class="section-title">Insights & alerts</h2>
+          <div class="card list-card" data-settings-group="alerts"></div>
+          <h2 class="section-title">Experience</h2>
+          <div class="card list-card" data-settings-group="experience"></div>
+          <h2 class="section-title">Demo scenarios</h2>
+          <div class="card list-card">
+            <button class="row" data-action="demo-alert"><svg class="row__icon"><use href="#i-alert"/></svg><span class="row__text"><b>Simulate sensor alert</b><span>Pushes a heart-rate range notification</span></span><svg class="row__chev"><use href="#i-chevron-right"/></svg></button>
+            <button class="row" data-action="demo-disconnect"><svg class="row__icon"><use href="#i-bluetooth"/></svg><span class="row__text"><b>Simulate jacket disconnect</b><span>Shows the disconnected state across the app</span></span><svg class="row__chev"><use href="#i-chevron-right"/></svg></button>
+            <button class="row" data-action="demo-low-battery"><svg class="row__icon"><use href="#i-battery"/></svg><span class="row__text"><b>Simulate low battery</b><span>Drops jacket battery to 20%</span></span><svg class="row__chev"><use href="#i-chevron-right"/></svg></button>
+            <button class="row" data-action="demo-sync-fail"><svg class="row__icon"><use href="#i-refresh"/></svg><span class="row__text"><b>Simulate sensor sync failure</b><span>Shows the retry flow and recovery</span></span><svg class="row__chev"><use href="#i-chevron-right"/></svg></button>
+            <button class="row" data-action="reset-demo"><svg class="row__icon"><use href="#i-refresh"/></svg><span class="row__text"><b>Reset demo data</b><span>Clears saved activities, ECG sessions and settings</span></span><svg class="row__chev"><use href="#i-chevron-right"/></svg></button>
+          </div>
+          <div class="card about-card">
+            <h3 class="card__label">Important</h3>
+            <p class="small">Biotex Life is presented here as a wellness, fitness and physiological monitoring interface. The prototype is not intended to diagnose, treat, cure or prevent any medical condition and does not replace professional medical evaluation.</p>
+            <p class="text-muted small mt-sm">Biotex Life v1.0 · © 2026 Biotex Life Solutions Pvt. Ltd., Hyderabad</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= HISTORY ================= -->
+      <section class="screen" data-screen="history">
+        <header class="screen-header"><button class="icon-btn" data-back aria-label="Back"><svg><use href="#i-chevron-left"/></svg></button><h1 class="screen-title">HISTORY</h1><div class="screen-header__actions"><button class="icon-btn" data-action="export-activities" aria-label="Export activities"><svg><use href="#i-download"/></svg></button></div></header>
+        <div class="page">
+          <div class="filter-row" data-history-filters>
+            <button class="chip chip--filter is-active" data-filter="all">All</button>
+            <button class="chip chip--filter" data-filter="walk">Walk</button>
+            <button class="chip chip--filter" data-filter="run">Run</button>
+            <button class="chip chip--filter" data-filter="cycle">Cycle</button>
+            <button class="chip chip--filter" data-filter="training">Training</button>
+          </div>
+          <div class="history-list" data-history-list="full"></div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Bottom navigation -->
+  <nav class="bottom-nav" id="bottom-nav" aria-label="Main navigation">
+    <a class="bottom-nav__item" href="#/home" data-nav="home"><svg><use href="#i-home"/></svg><span>Home</span></a>
+    <a class="bottom-nav__item" href="#/activity" data-nav="activity"><svg><use href="#i-activity"/></svg><span>Activity</span></a>
+    <a class="bottom-nav__item bottom-nav__item--center" href="#/ecg" data-nav="ecg" aria-label="Live ECG"><span class="bottom-nav__ecg"><svg><use href="#i-ecg"/></svg></span><span>ECG</span></a>
+    <a class="bottom-nav__item" href="#/analytics" data-nav="analytics"><svg><use href="#i-analytics"/></svg><span>Analytics</span></a>
+    <a class="bottom-nav__item" href="#/profile" data-nav="profile"><svg><use href="#i-user"/></svg><span>Profile</span></a>
+    <i class="bottom-nav__indicator" aria-hidden="true"></i>
+  </nav>
+</div>
+
+<!-- Jacket shape reused by the device page -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="jacket-shape">
+    <path d="M80 14 L120 14 L124 34 L154 44 C178 56 186 120 188 140 L192 206 L150 212 L146 140 L144 96 L146 236 L54 236 L56 96 L54 140 L50 212 L8 206 L12 140 C14 120 22 56 46 44 L76 34 Z" fill="url(#jacketFill)" stroke="rgba(255,255,255,.18)" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M100 34 V236" stroke="rgba(255,255,255,.16)" stroke-dasharray="3 4"/>
+    <path d="M80 14 L100 36 L120 14" fill="none" stroke="rgba(255,255,255,.16)"/>
+    <g fill="#3EE2D4"><circle cx="82" cy="80" r="3"/><circle cx="118" cy="80" r="3"/><circle cx="84" cy="118" r="3"/><circle cx="116" cy="118" r="3"/><circle cx="100" cy="152" r="3"/><circle cx="64" cy="172" r="3"/><circle cx="136" cy="172" r="3"/></g>
+  </g>
+</defs></svg>
+
+<!-- Overlays -->
+<div class="sheet-root" id="sheet-root" aria-live="polite"></div>
+<div class="modal-root" id="modal-root"></div>
+<div class="toast-root" id="toast-root" aria-live="polite" aria-atomic="true"></div>
+
+<noscript><div class="noscript">Biotex Life needs JavaScript enabled to run the live monitoring prototype.</div></noscript>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="assets/data/route-hyderabad.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/data.js"></script>
+<script src="js/simulator.js"></script>
+<script src="js/ecg.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/map.js"></script>
+<script src="js/device.js"></script>
+<script src="js/notifications.js"></script>
+<script src="js/activity.js"></script>
+<script src="js/navigation.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/screens.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

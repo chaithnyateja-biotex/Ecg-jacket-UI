@@ -1,0 +1,309 @@
+/* ==========================================================================
+   BIOTEX LIFE — Design system, base, layout, utilities, animations
+   Files: style.css (this) · css/components.css · css/screens.css · css/responsive.css
+   ========================================================================== */
+
+/* ------------------------------------------------------------------
+   1. DESIGN TOKENS
+   ------------------------------------------------------------------ */
+:root {
+  --bg-primary: #050708;
+  --bg-secondary: #0A0D10;
+  --bg-tertiary: #0F1418;
+  --surface: rgba(255, 255, 255, 0.035);
+  --surface-strong: rgba(255, 255, 255, 0.065);
+  --surface-elevated: rgba(17, 23, 27, 0.92);
+  --surface-solid: #0E1316;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text-primary: #F2F5F7;
+  --text-secondary: #AAB5BE;
+  --text-muted: #6F7B86;
+  --text-inverse: #061013;
+
+  --accent-primary: #3EE2D4;
+  --accent-primary-rgb: 62, 226, 212;
+  --accent-green: #3DDC97;
+  --accent-green-rgb: 61, 220, 151;
+  --accent-blue: #5B9CFF;
+  --accent-blue-rgb: 91, 156, 255;
+  --accent-purple: #A78BFA;
+  --accent-purple-rgb: 167, 139, 250;
+  --accent-orange: #FFA552;
+  --accent-orange-rgb: 255, 165, 82;
+  --accent-red: #FF6B6B;
+  --accent-red-rgb: 255, 107, 107;
+
+  --radius-small: 10px;
+  --radius-medium: 16px;
+  --radius-large: 24px;
+  --radius-pill: 999px;
+
+  --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 8px 24px rgba(0, 0, 0, 0.28);
+  --shadow-glow: 0 0 0 1px rgba(var(--accent-primary-rgb), 0.22), 0 14px 44px rgba(var(--accent-primary-rgb), 0.14);
+
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  --transition-fast: 150ms;
+  --transition-normal: 250ms;
+  --transition-slow: 420ms;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Manrope', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --fs-xs: 11px;
+  --fs-sm: 12.5px;
+  --fs-base: 14.5px;
+  --fs-md: 16px;
+  --fs-lg: 19px;
+  --fs-xl: clamp(24px, 6vw, 30px);
+  --fs-hero: clamp(40px, 11vw, 56px);
+
+  --nav-height: 64px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --page-pad: 16px;
+  --content-max: 1180px;
+  --sidebar-w: 248px;
+
+  --map-filter: none;
+  color-scheme: dark;
+}
+
+/* Light theme — optional; dark remains the primary design */
+:root[data-theme="light"] {
+  --bg-primary: #F3F6F8;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #EAF0F3;
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-strong: rgba(255, 255, 255, 0.95);
+  --surface-elevated: rgba(255, 255, 255, 0.96);
+  --surface-solid: #FFFFFF;
+  --border: rgba(6, 20, 24, 0.08);
+  --border-strong: rgba(6, 20, 24, 0.16);
+  --text-primary: #0B1418;
+  --text-secondary: #4C5A63;
+  --text-muted: #7B8790;
+  --text-inverse: #FFFFFF;
+  --accent-primary: #0FB7A8;
+  --accent-primary-rgb: 15, 183, 168;
+  --accent-green: #15A866;
+  --accent-green-rgb: 21, 168, 102;
+  --accent-blue: #2F6FE0;
+  --accent-blue-rgb: 47, 111, 224;
+  --accent-purple: #7C5CE0;
+  --accent-purple-rgb: 124, 92, 224;
+  --accent-orange: #E07A1F;
+  --accent-orange-rgb: 224, 122, 31;
+  --accent-red: #DE4A4A;
+  --accent-red-rgb: 222, 74, 74;
+  --shadow-soft: 0 10px 30px rgba(12, 30, 36, 0.10);
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 6px 18px rgba(12, 30, 36, 0.08);
+  --shadow-glow: 0 0 0 1px rgba(var(--accent-primary-rgb), 0.22), 0 12px 36px rgba(var(--accent-primary-rgb), 0.14);
+  color-scheme: light;
+}
+
+/* ------------------------------------------------------------------
+   2. RESET & BASE
+   ------------------------------------------------------------------ */
+*, *::before, *::after { box-sizing: border-box; }
+html { height: 100%; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--fs-base);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+h1, h2, h3, h4 { margin: 0; font-family: var(--font-display); font-weight: 700; line-height: 1.15; letter-spacing: -0.01em; }
+p { margin: 0; }
+ul { margin: 0; padding: 0; list-style: none; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+img, svg, canvas { display: block; max-width: 100%; }
+svg:not(.svg-sprite) { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+svg text { stroke: none; }
+input, select { font: inherit; color: inherit; }
+b, strong { font-weight: 600; }
+small { font-size: 0.72em; font-weight: 500; }
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; border-radius: 6px; }
+::selection { background: rgba(var(--accent-primary-rgb), 0.3); }
+
+/* Scrollbars (desktop) */
+.screen::-webkit-scrollbar, .sheet__body::-webkit-scrollbar, .modal__body::-webkit-scrollbar { width: 8px; }
+.screen::-webkit-scrollbar-thumb, .sheet__body::-webkit-scrollbar-thumb, .modal__body::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.10); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+
+/* ------------------------------------------------------------------
+   3. APP SHELL & LAYOUT
+   ------------------------------------------------------------------ */
+.app { position: fixed; inset: 0; display: flex; background: var(--bg-primary); }
+.app::before {
+  /* ambient brand glow */
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(900px 500px at 10% -10%, rgba(var(--accent-primary-rgb), 0.08), transparent 60%),
+    radial-gradient(700px 420px at 100% 110%, rgba(var(--accent-blue-rgb), 0.06), transparent 60%);
+}
+.sidebar { display: none; }
+.main { position: relative; flex: 1; min-width: 0; z-index: 1; }
+.screens { position: absolute; inset: 0; }
+.screen {
+  position: absolute; inset: 0;
+  overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  display: none;
+  padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 28px);
+}
+.screen.is-active { display: block; }
+.screen--immersive { padding-bottom: 0; }
+.screen.is-entering { animation: screenIn var(--transition-normal) var(--ease-out) both; }
+.screen.is-leaving { display: block; animation: screenOut 170ms var(--ease) forwards; pointer-events: none; z-index: 2; }
+.screen.is-entering.is-back { animation-name: screenInBack; }
+.screen.is-leaving.is-back { animation-name: screenOutBack; }
+
+.page { padding: var(--spacing-md) var(--page-pad) 0; display: flex; flex-direction: column; gap: var(--spacing-md); max-width: var(--content-max); margin: 0 auto; width: 100%; }
+
+/* Screen header */
+.screen-header {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: var(--spacing-sm);
+  padding: calc(10px + var(--safe-top)) var(--page-pad) 10px;
+  background: linear-gradient(to bottom, rgba(5, 7, 8, 0.92), rgba(5, 7, 8, 0.72));
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+:root[data-theme="light"] .screen-header { background: linear-gradient(to bottom, rgba(243, 246, 248, 0.96), rgba(243, 246, 248, 0.82)); }
+.screen-header--main { padding-top: calc(18px + var(--safe-top)); }
+.screen-header--main .screen-title { font-size: var(--fs-xl); letter-spacing: -0.02em; text-transform: none; }
+.screen-title { flex: 1; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.screen-header__actions { display: flex; align-items: center; gap: 6px; }
+
+/* App header (home) */
+.app-header {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm);
+  padding: calc(12px + var(--safe-top)) var(--page-pad) 12px;
+  background: linear-gradient(to bottom, rgba(5, 7, 8, 0.92), rgba(5, 7, 8, 0.6));
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+:root[data-theme="light"] .app-header { background: linear-gradient(to bottom, rgba(243, 246, 248, 0.96), rgba(243, 246, 248, 0.8)); }
+.app-header__left { display: flex; align-items: center; min-width: 0; flex: 1 1 auto; overflow: hidden; }
+.app-header__right { display: flex; align-items: center; gap: 8px; flex: none; }
+.chip__mini { display: none; }
+@media (max-width: 479px) { .app-header .chip__full { display: none; } .app-header .chip__mini { display: inline; } .app-header .brand-logo--sm { height: 24px; } }
+
+/* ------------------------------------------------------------------
+   4. BRAND LOGO (real asset auto-swap)
+   ------------------------------------------------------------------ */
+.brand-logo { display: inline-flex; align-items: center; color: var(--text-primary); line-height: 0; }
+.brand-logo img { display: none; height: 100%; width: auto; object-fit: contain; }
+.brand-logo__svg { height: 100%; width: auto; stroke: none; }
+.brand-logo--xs { height: 22px; }
+.brand-logo--sm { height: 26px; }
+.brand-logo--md { height: 34px; }
+.brand-logo--lg { height: 44px; }
+.brand-logo--xl { height: clamp(54px, 14vw, 72px); }
+html.has-real-logo .brand-logo img { display: block; }
+html.has-real-logo .brand-logo__svg { display: none; }
+html.has-real-logo.logo-needs-light-bg .brand-logo { background: rgba(255, 255, 255, 0.92); border-radius: 10px; padding: 4px 10px; }
+
+/* ------------------------------------------------------------------
+   5. TYPOGRAPHY UTILITIES
+   ------------------------------------------------------------------ */
+.eyebrow { font-size: var(--fs-xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
+.small { font-size: var(--fs-sm); }
+.text-muted { color: var(--text-muted); }
+.text-secondary { color: var(--text-secondary); }
+.c-aqua { color: var(--accent-primary); }
+.c-green { color: var(--accent-green); }
+.c-blue { color: var(--accent-blue); }
+.c-purple { color: var(--accent-purple); }
+.c-orange { color: var(--accent-orange); }
+.c-red { color: var(--accent-red); }
+.c-bg-aqua { background: var(--accent-primary); }
+.c-bg-green { background: var(--accent-green); }
+.c-bg-blue { background: var(--accent-blue); }
+.c-bg-purple { background: var(--accent-purple); }
+.c-bg-orange { background: var(--accent-orange); }
+.c-bg-red { background: var(--accent-red); }
+.mt-sm { margin-top: var(--spacing-sm); }
+.mt-md { margin-top: var(--spacing-md); }
+.mt-lg { margin-top: var(--spacing-lg); }
+.ico { width: 15px; height: 15px; display: inline-block; vertical-align: -3px; flex: none; }
+.tnum, .metric__value, .live__timer, .ecg-timer, .stat-box b, .live__stat b, .tile__value, .kv b, .hero__stat-value, .fullmap__stats b, .summary__big b { font-variant-numeric: tabular-nums; }
+[hidden] { display: none !important; }
+
+.section-title { font-size: var(--fs-md); font-weight: 700; margin-top: var(--spacing-sm); }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); margin-top: var(--spacing-sm); }
+.section-head h2 { font-size: var(--fs-md); }
+.disclaimer-line { font-size: var(--fs-xs); text-align: center; padding: var(--spacing-sm) 0 var(--spacing-md); }
+.note { display: flex; gap: 10px; align-items: flex-start; font-size: var(--fs-sm); color: var(--text-secondary); padding: 12px 14px; border: 1px dashed var(--border-strong); border-radius: var(--radius-medium); }
+.note svg { width: 16px; height: 16px; flex: none; color: var(--accent-primary); margin-top: 1px; }
+.noscript { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg-primary); padding: 24px; text-align: center; z-index: 999; }
+
+/* ------------------------------------------------------------------
+   6. ANIMATIONS
+   ------------------------------------------------------------------ */
+@keyframes screenIn { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+@keyframes screenOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(-14px); } }
+@keyframes screenInBack { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+@keyframes screenOutBack { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(14px); } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: none; } }
+@keyframes pulseDot { 0%, 100% { box-shadow: 0 0 0 0 rgba(var(--accent-green-rgb), 0.55); } 70% { box-shadow: 0 0 0 7px rgba(var(--accent-green-rgb), 0); } }
+@keyframes pulseRec { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@keyframes ripple { 0% { transform: scale(0.6); opacity: 0.7; } 100% { transform: scale(1.9); opacity: 0; } }
+@keyframes heartBeat { 0% { transform: scale(1); } 14% { transform: scale(1.22); } 28% { transform: scale(1); } 42% { transform: scale(1.12); } 70% { transform: scale(1); } }
+@keyframes sensorPulse { 0%, 100% { opacity: 0.45; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.15); } }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes drawLine { to { stroke-dashoffset: 0; } }
+@keyframes toastIn { from { opacity: 0; transform: translateY(14px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes sheetIn { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes sheetOut { from { transform: none; } to { transform: translateY(100%); } }
+@keyframes modalIn { from { opacity: 0; transform: translateY(10px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes vibrate { 0%, 100% { transform: translateX(0) rotate(0); } 20% { transform: translateX(-3px) rotate(-1.5deg); } 40% { transform: translateX(3px) rotate(1.5deg); } 60% { transform: translateX(-2px); } 80% { transform: translateX(2px); } }
+@keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 2px rgba(var(--accent-primary-rgb), 0.3)); } 50% { filter: drop-shadow(0 0 12px rgba(var(--accent-primary-rgb), 0.9)); } }
+@keyframes chargeFill { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+@keyframes gpsPulse { 0% { transform: scale(0.5); opacity: 0.9; } 100% { transform: scale(2.6); opacity: 0; } }
+@keyframes floatY { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes heroGlow { 0%, 100% { opacity: 0.55; transform: translate(0, 0); } 50% { opacity: 0.85; transform: translate(-4%, 6%); } }
+@keyframes dash { to { stroke-dashoffset: -24; } }
+
+.anim-fade-up { animation: fadeUp var(--transition-slow) var(--ease-out) both; }
+.stagger > * { animation: fadeUp 420ms var(--ease-out) both; }
+.stagger > *:nth-child(1) { animation-delay: 30ms; }
+.stagger > *:nth-child(2) { animation-delay: 70ms; }
+.stagger > *:nth-child(3) { animation-delay: 110ms; }
+.stagger > *:nth-child(4) { animation-delay: 150ms; }
+.stagger > *:nth-child(5) { animation-delay: 190ms; }
+.stagger > *:nth-child(6) { animation-delay: 230ms; }
+.stagger > *:nth-child(7) { animation-delay: 270ms; }
+.stagger > *:nth-child(8) { animation-delay: 310ms; }
+.stagger > *:nth-child(n+9) { animation-delay: 350ms; }
+
+/* ------------------------------------------------------------------
+   7. REDUCED MOTION
+   ------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  .heart-beat svg, .status-dot--live, .connect__rings span, .sensor-pulse, .jacket__sensor circle:first-child { animation: none !important; }
+}
+html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }

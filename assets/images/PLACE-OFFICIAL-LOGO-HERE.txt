@@ -1,0 +1,8 @@
+Drop the official Biotex logo in this folder as:
+
+  biotex-logo.png   (transparent PNG, light/white version preferred for the dark UI)
+  or biotex-logo.svg
+
+The app detects it automatically on next load and uses it everywhere
+(splash, onboarding, header, pairing, device page, profile, about).
+No code changes required.
