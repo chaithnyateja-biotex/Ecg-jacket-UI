@@ -129,7 +129,7 @@
     frame(ts) {
       let dt = (ts - this.lastTs) / 1000; this.lastTs = ts;
       if (!(dt > 0)) return;
-      if (dt > 0.25) { dt = 0.016; this.t += 0; } // tab was hidden — avoid a big smear
+      if (dt > 0.25) dt = 0.25; // tab was hidden or a slow frame — advance at most a quarter second so the beat clock keeps real time without a big smear
       if (!this.width) return;
       const pxPerSec = this.speed * this.mmPx;
       let advance = dt * pxPerSec;

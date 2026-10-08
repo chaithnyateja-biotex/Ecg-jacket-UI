@@ -6,22 +6,21 @@
   'use strict';
 
   const INITIAL_VITALS = {
-    hr: 72, restingHr: 61, hrMax: 142, hrv: 54, spo2: 98, resp: 15,
+    hr: 72, restingHr: 61, hrMax: 142, hrv: 54, spo2: 98,
     temp: 36.7, tempBaseline: 36.6,
     bodyBattery: 78, fatigue: 32, recovery: 82, stress: 24, sleepScore: 86,
-    steps: 8642, calories: 624, distanceKm: 6.4, activeMinutes: 74,
+    calories: 624, distanceKm: 6.4, activeMinutes: 74,
     trainingLoad: 68, jacketBattery: 82,
     bbCharged: 54, bbDrained: 26,
   };
 
   const SENSORS = [
+    /* the jacket carries four sensors — ECG electrodes, an optical pulse sensor (HR + SpO₂) and a skin-temperature sensor; GPS comes from the phone */
     { id: 'ecg', name: 'ECG Electrodes', icon: 'ecg' },
-    { id: 'hr', name: 'Heart Rate', icon: 'heart' },
-    { id: 'temp', name: 'Temperature', icon: 'thermometer' },
-    { id: 'motion', name: 'Motion', icon: 'activity' },
-    { id: 'resp', name: 'Respiration', icon: 'wind' },
-    { id: 'spo2', name: 'SpO₂', icon: 'droplet' },
-    { id: 'gps', name: 'GPS', icon: 'gps' },
+    { id: 'hr', name: 'Heart Rate (optical)', icon: 'heart' },
+    { id: 'spo2', name: 'SpO₂ (optical)', icon: 'droplet' },
+    { id: 'temp', name: 'Skin Temperature', icon: 'thermometer' },
+    { id: 'gps', name: 'GPS (phone)', icon: 'gps' },
   ];
 
   const HR_ZONES = [
@@ -36,13 +35,13 @@
   /** Activity type profiles used by the simulation engine */
   const ACTIVITY_TYPES = [
     /* strainRate = fatigue points per simulated minute; drainPerMin = body-battery points per minute */
-    { id: 'walk', label: 'Walking', noun: 'Walk', category: 'walk', icon: 'walk', desc: 'Steady pace, low strain', speedKmh: 5.7, hrBase: 114, hrVar: 8, kcalPerMin: 5.8, cadence: 1.9, strainRate: 0.19, drainPerMin: 0.29, elevPerKm: 13, intensity: 0.35 },
-    { id: 'run', label: 'Running', noun: 'Run', category: 'run', icon: 'run', desc: 'Aerobic & threshold work', speedKmh: 11.6, hrBase: 152, hrVar: 7, kcalPerMin: 11.5, cadence: 2.8, strainRate: 0.45, drainPerMin: 0.61, elevPerKm: 14, intensity: 0.85 },
-    { id: 'cycle', label: 'Cycling', noun: 'Ride', category: 'cycle', icon: 'bike', desc: 'Road & endurance rides', speedKmh: 22, hrBase: 136, hrVar: 8, kcalPerMin: 9, cadence: 0, strainRate: 0.24, drainPerMin: 0.35, elevPerKm: 10, intensity: 0.6 },
-    { id: 'hike', label: 'Hiking', noun: 'Hike', category: 'walk', icon: 'hike', desc: 'Trail with elevation', speedKmh: 4.2, hrBase: 126, hrVar: 9, kcalPerMin: 7.5, cadence: 1.7, strainRate: 0.14, drainPerMin: 0.2, elevPerKm: 45, intensity: 0.5 },
-    { id: 'training', label: 'Training', noun: 'Training', category: 'training', icon: 'dumbbell', desc: 'Strength & conditioning', speedKmh: 0, hrBase: 138, hrVar: 14, kcalPerMin: 9.5, cadence: 0.6, strainRate: 0.32, drainPerMin: 0.4, elevPerKm: 0, intensity: 0.65 },
-    { id: 'recovery', label: 'Recovery Walk', noun: 'Recovery Walk', category: 'walk', icon: 'leaf', desc: 'Gentle, parasympathetic', speedKmh: 4.8, hrBase: 98, hrVar: 5, kcalPerMin: 4.2, cadence: 1.6, strainRate: 0.07, drainPerMin: 0.14, elevPerKm: 8, intensity: 0.2 },
-    { id: 'intervals', label: 'Interval Run', noun: 'Interval Run', category: 'run', icon: 'activity', desc: '5 × 3 min hard · 2 min easy', speedKmh: 10.5, hrBase: 150, hrVar: 6, kcalPerMin: 11, cadence: 2.7, strainRate: 0.5, drainPerMin: 0.65, elevPerKm: 12, intensity: 0.85, intervals: { warmup: 9, hard: 3, easy: 2, reps: 5, cooldown: 11 } },
+    { id: 'walk', label: 'Walking', noun: 'Walk', category: 'walk', icon: 'walk', desc: 'Steady pace, low strain', speedKmh: 5.7, hrBase: 114, hrVar: 8, kcalPerMin: 5.8, strainRate: 0.19, drainPerMin: 0.29, elevPerKm: 13, intensity: 0.35 },
+    { id: 'run', label: 'Running', noun: 'Run', category: 'run', icon: 'run', desc: 'Aerobic & threshold work', speedKmh: 11.6, hrBase: 152, hrVar: 7, kcalPerMin: 11.5, strainRate: 0.45, drainPerMin: 0.61, elevPerKm: 14, intensity: 0.85 },
+    { id: 'cycle', label: 'Cycling', noun: 'Ride', category: 'cycle', icon: 'bike', desc: 'Road & endurance rides', speedKmh: 22, hrBase: 136, hrVar: 8, kcalPerMin: 9, strainRate: 0.24, drainPerMin: 0.35, elevPerKm: 10, intensity: 0.6 },
+    { id: 'hike', label: 'Hiking', noun: 'Hike', category: 'walk', icon: 'hike', desc: 'Trail with elevation', speedKmh: 4.2, hrBase: 126, hrVar: 9, kcalPerMin: 7.5, strainRate: 0.14, drainPerMin: 0.2, elevPerKm: 45, intensity: 0.5 },
+    { id: 'training', label: 'Training', noun: 'Training', category: 'training', icon: 'dumbbell', desc: 'Strength & conditioning', speedKmh: 0, hrBase: 138, hrVar: 14, kcalPerMin: 9.5, strainRate: 0.32, drainPerMin: 0.4, elevPerKm: 0, intensity: 0.65 },
+    { id: 'recovery', label: 'Recovery Walk', noun: 'Recovery Walk', category: 'walk', icon: 'leaf', desc: 'Gentle, parasympathetic', speedKmh: 4.8, hrBase: 98, hrVar: 5, kcalPerMin: 4.2, strainRate: 0.07, drainPerMin: 0.14, elevPerKm: 8, intensity: 0.2 },
+    { id: 'intervals', label: 'Interval Run', noun: 'Interval Run', category: 'run', icon: 'activity', desc: '5 × 3 min hard · 2 min easy', speedKmh: 10.5, hrBase: 150, hrVar: 6, kcalPerMin: 11, strainRate: 0.5, drainPerMin: 0.65, elevPerKm: 12, intensity: 0.85, intervals: { warmup: 9, hard: 3, easy: 2, reps: 5, cooldown: 11 } },
   ];
   const activityType = (id) => ACTIVITY_TYPES.find((t) => t.id === id) || ACTIVITY_TYPES[0];
   const activityName = (id, date) => {
@@ -69,7 +68,7 @@
   /* ---------- 7-day series (oldest → yesterday; today appended live) ---------- */
   const WEEK = {
     distance: [4.8, 0, 8.1, 5.4, 10.2, 3.7],
-    steps: [6410, 2100, 10980, 7230, 13950, 5020],
+    activeMinutes: [48, 22, 81, 55, 96, 40],
     calories: [470, 290, 690, 510, 860, 410],
     recovery: [72, 78, 68, 84, 81, 88],
     fatigue: [41, 36, 48, 30, 34, 27],
@@ -97,7 +96,6 @@
   };
   const MONTH = {
     distance: series(11, 30, 5.2, 3.2, 0.8, 0, 14, 1).map((v, i) => (i % 7 === 2 ? 0 : v)),
-    steps: series(12, 30, 8200, 3200, 600, 1500, 15000),
     calories: series(13, 30, 560, 180, 40, 250, 980),
     recovery: series(14, 30, 76, 10, 4, 48, 95),
     fatigue: series(15, 30, 38, 11, -4, 12, 70),
@@ -112,7 +110,6 @@
   };
   const YEAR = {
     distance: series(31, 12, 128, 32, 24, 60, 220).map((v) => BL.round(v)),
-    steps: series(32, 12, 236000, 42000, 18000, 150000, 330000),
     calories: series(33, 12, 16200, 2800, 900, 10000, 24000),
     recovery: series(34, 12, 74, 6, 5, 55, 90),
     fatigue: series(35, 12, 40, 7, -5, 20, 60),
@@ -137,13 +134,13 @@
   const at = (daysAgo, h, m) => { const d = new Date(today); d.setDate(d.getDate() - daysAgo); d.setHours(h, m, 0, 0); return d.getTime(); };
 
   const SEED_ACTIVITIES = [
-    { id: 'seed-a1', type: 'walk', name: 'Morning Walk', date: at(0, 8, 10), distanceKm: 6.24, durationSec: 2896, avgPace: 464, calories: 512, avgHr: 128, maxHr: 158, elevation: 82, steps: 8966, avgTemp: 36.9, fatigueDelta: 9, bbDelta: -14, load: 68, zones: [9, 17, 15, 6, 1], seeded: true },
-    { id: 'seed-a2', type: 'run', name: 'Morning Run', date: at(1, 6, 52), distanceKm: 4.82, durationSec: 1865, avgPace: 387, calories: 468, avgHr: 152, maxHr: 171, elevation: 54, steps: 5310, avgTemp: 37.1, fatigueDelta: 14, bbDelta: -19, load: 74, zones: [2, 5, 10, 11, 3], seeded: true },
-    { id: 'seed-a3', type: 'recovery', name: 'Recovery Walk', date: at(2, 17, 40), distanceKm: 3.4, durationSec: 2530, avgPace: 744, calories: 190, avgHr: 104, maxHr: 121, elevation: 22, steps: 4710, avgTemp: 36.7, fatigueDelta: 3, bbDelta: -6, load: 40, zones: [28, 12, 2, 0, 0], seeded: true },
-    { id: 'seed-a4', type: 'cycle', name: 'Evening Ride', date: at(3, 18, 30), distanceKm: 18.6, durationSec: 2790, avgPace: 150, calories: 540, avgHr: 139, maxHr: 162, elevation: 140, steps: 0, avgTemp: 37.0, fatigueDelta: 11, bbDelta: -16, load: 66, zones: [4, 10, 19, 11, 2], seeded: true },
-    { id: 'seed-a5', type: 'training', name: 'Strength Training', date: at(4, 7, 15), distanceKm: 0, durationSec: 2280, avgPace: 0, calories: 392, avgHr: 131, maxHr: 160, elevation: 0, steps: 1210, avgTemp: 37.0, fatigueDelta: 12, bbDelta: -15, load: 62, zones: [6, 9, 14, 8, 1], seeded: true },
-    { id: 'seed-a7', type: 'intervals', name: 'Interval Session', date: at(6, 6, 40), distanceKm: 7.6, durationSec: 2700, avgPace: 355, calories: 560, avgHr: 142, maxHr: 176, elevation: 48, steps: 7420, avgTemp: 37.2, fatigueDelta: 16, bbDelta: -21, load: 73, zones: [7, 4.5, 8, 8, 8], seeded: true },
-    { id: 'seed-a6', type: 'hike', name: 'Weekend Hike', date: at(8, 6, 30), distanceKm: 9.4, durationSec: 7920, avgPace: 842, calories: 820, avgHr: 124, maxHr: 151, elevation: 410, steps: 12840, avgTemp: 37.0, fatigueDelta: 18, bbDelta: -26, load: 80, zones: [30, 52, 38, 10, 2], seeded: true },
+    { id: 'seed-a1', type: 'walk', name: 'Morning Walk', date: at(0, 8, 10), distanceKm: 6.24, durationSec: 2896, avgPace: 464, calories: 512, avgHr: 128, maxHr: 158, elevation: 82, avgTemp: 36.9, fatigueDelta: 9, bbDelta: -14, load: 68, zones: [9, 17, 15, 6, 1], seeded: true },
+    { id: 'seed-a2', type: 'run', name: 'Morning Run', date: at(1, 6, 52), distanceKm: 4.82, durationSec: 1865, avgPace: 387, calories: 468, avgHr: 152, maxHr: 171, elevation: 54, avgTemp: 37.1, fatigueDelta: 14, bbDelta: -19, load: 74, zones: [2, 5, 10, 11, 3], seeded: true },
+    { id: 'seed-a3', type: 'recovery', name: 'Recovery Walk', date: at(2, 17, 40), distanceKm: 3.4, durationSec: 2530, avgPace: 744, calories: 190, avgHr: 104, maxHr: 121, elevation: 22, avgTemp: 36.7, fatigueDelta: 3, bbDelta: -6, load: 40, zones: [28, 12, 2, 0, 0], seeded: true },
+    { id: 'seed-a4', type: 'cycle', name: 'Evening Ride', date: at(3, 18, 30), distanceKm: 18.6, durationSec: 2790, avgPace: 150, calories: 540, avgHr: 139, maxHr: 162, elevation: 140, avgTemp: 37.0, fatigueDelta: 11, bbDelta: -16, load: 66, zones: [4, 10, 19, 11, 2], seeded: true },
+    { id: 'seed-a5', type: 'training', name: 'Strength Training', date: at(4, 7, 15), distanceKm: 0, durationSec: 2280, avgPace: 0, calories: 392, avgHr: 131, maxHr: 160, elevation: 0, avgTemp: 37.0, fatigueDelta: 12, bbDelta: -15, load: 62, zones: [6, 9, 14, 8, 1], seeded: true },
+    { id: 'seed-a7', type: 'intervals', name: 'Interval Session', date: at(6, 6, 40), distanceKm: 7.6, durationSec: 2700, avgPace: 355, calories: 560, avgHr: 142, maxHr: 176, elevation: 48, avgTemp: 37.2, fatigueDelta: 16, bbDelta: -21, load: 73, zones: [7, 4.5, 8, 8, 8], seeded: true },
+    { id: 'seed-a6', type: 'hike', name: 'Weekend Hike', date: at(8, 6, 30), distanceKm: 9.4, durationSec: 7920, avgPace: 842, calories: 820, avgHr: 124, maxHr: 151, elevation: 410, avgTemp: 37.0, fatigueDelta: 18, bbDelta: -26, load: 80, zones: [30, 52, 38, 10, 2], seeded: true },
   ];
 
   const SEED_ECG = [
@@ -170,7 +167,7 @@
     { text: 'Your resting heart rate remains stable.', icon: 'heart', color: 'blue', tag: 'Heart', screen: 'heart' },
     { text: 'Fatigue increased after your evening workout.', icon: 'gauge', color: 'orange', tag: 'Fatigue', screen: 'fatigue' },
     { text: 'Body Battery recovered strongly during sleep.', icon: 'moon', color: 'purple', tag: 'Energy', screen: 'body-battery' },
-    { text: 'You walked 18% farther than last week.', icon: 'steps', color: 'blue', tag: 'Activity', screen: 'analytics' },
+    { text: 'You covered 18% more distance than last week.', icon: 'route', color: 'blue', tag: 'Activity', screen: 'analytics' },
     { text: 'Your temperature remains close to baseline.', icon: 'thermometer', color: 'green', tag: 'Temperature', screen: 'temperature' },
     { text: 'Most of your recent activity was in aerobic heart-rate zones.', icon: 'target', color: 'aqua', tag: 'Zones', screen: 'heart' },
     { text: 'Today appears suitable for moderate training.', icon: 'sparkles', color: 'green', tag: 'Readiness', screen: 'recovery' },
@@ -196,7 +193,7 @@
       params: ['Pulse rate (bpm), second by second', 'Pulse-to-pulse interval', 'Pulse amplitude', 'Resting, average and peak HR', 'HR at fixed times after stopping'],
       derived: ['HRmax, HR reserve and five zones', 'Time in each zone', 'Heart-rate recovery in 60 s', 'TRIMP training load per session', 'Acute vs chronic load ratio', 'HR drift at steady effort', 'Calories and VO₂max estimate'] },
     { id: 'spo2', name: 'SpO₂', color: 'green', icon: 'droplet', desc: 'Oxygen saturation of arterial blood', raw: 'Red and infrared light absorption, pulsing (AC) and steady (DC) parts',
-      params: ['Red-to-infrared ratio R', 'SpO₂ in percent', 'Perfusion index (signal strength)', 'Signal quality flag for motion'],
+      params: ['Red-to-infrared ratio R', 'SpO₂ in percent', 'Perfusion index (signal strength)', 'Signal-quality flag (waveform stability)'],
       derived: ['Resting baseline SpO₂', 'Lowest SpO₂ in a session', 'Desaturation events (drop of 4 % or more)', 'Time spent below 90 %', 'Altitude acclimatisation trend', 'SpO₂ recovery time between intervals'] },
     { id: 'temp', name: 'Body temperature', color: 'amber', icon: 'thermometer', desc: 'Skin temperature at the sensor site', raw: 'Skin temperature in °C, typically to ±0.1 °C',
       params: ['Skin temperature at rest', 'Skin temperature during work', 'Night-time skin temperature', 'Rate of rise during exercise', 'Cool-down time after stopping'],
@@ -204,7 +201,7 @@
   ];
   const SIGNAL_COMBINED = [
     { title: 'Pulse arrival time', sensors: ['blue', 'orange'], text: 'ECG R-peak to pulse arrival. Tracks blood-pressure trend, not an absolute reading.' },
-    { title: 'HR cross-check', sensors: ['blue', 'orange'], text: 'When ECG and optical HR disagree by more than 5 bpm, flag motion artefact.' },
+    { title: 'HR cross-check', sensors: ['blue', 'orange'], text: 'When ECG and optical HR disagree by more than 5 bpm, flag the optical reading as artefact.' },
     { title: 'Heat-strain index', sensors: ['orange', 'amber'], text: 'HR and temperature rise combined into a 0–10 strain score for hot sessions.' },
     { title: 'Morning readiness', sensors: ['blue', 'orange', 'green', 'amber'], text: 'HRV, resting HR, skin temperature and SpO₂, each scored against your own baseline.' },
     { title: 'Load vs recovery', sensors: ['blue', 'orange'], text: 'TRIMP load plotted against HRV trend shows when to push and when to back off.' },
@@ -216,7 +213,7 @@
     ['Firmware', 'v1.0.8'],
     ['Bluetooth', 'BLE 5.3 · MAC 7C:2A:9E:41:0B:D3'],
     ['Electrodes', '7 textile dry electrodes'],
-    ['Sampling', 'ECG 250 Hz · Motion 100 Hz'],
+    ['Sampling', 'ECG 250 Hz · PPG 100 Hz · Skin temp 1 Hz'],
     ['Battery', '620 mAh Li-Po · USB-C'],
     ['Water resistance', 'IPX4 (sensor module removable)'],
     ['Manufacturer', 'Biotex Life Solutions Pvt. Ltd., Hyderabad'],

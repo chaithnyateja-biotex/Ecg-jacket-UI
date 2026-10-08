@@ -17,6 +17,14 @@ or manually: `python -m http.server 8080` / `npx serve .` inside this folder.
 
 Deep links work: `index.html#/ecg`, `#/analytics`, `#/device`, `#/body-battery`, … (the splash plays first).
 
+## Sensors (v1.1)
+
+The jacket carries **four sensors**: ECG textile electrodes, an optical pulse sensor (heart rate + SpO₂) and a skin-temperature sensor; the phone supplies GPS for routes, distance, pace and elevation. There is **no motion/accelerometer sensor and no respiration sensor**, so the app deliberately shows no steps, cadence or respiration-rate vitals. In their place:
+
+- **Active minutes** are heart-rate based — minutes at or above 30 % of heart-rate reserve — with a daily goal in the profile.
+- **Breathing rate** appears only as an *estimate* in the ECG RR panel (respiratory sinus arrhythmia in the RR series), never as a measured vital.
+- **Optical artefacts** are detected from the signals themselves: the ECG-vs-optical cross-check (> 5 bpm apart) and PPG waveform stability (SpO₂ readings flagged "unstable" during hard efforts).
+
 ## What is calculated — and how (v1.1)
 
 Every training number on screen is computed from the sensor signals with published formulas. The in-app **Signal Map** (Jacket → Signal Map) and **Calculations** (sidebar / Insights / Heart) screens show the formulas with a live worked example from your profile; the same functions live in `js/metrics.js`.
@@ -36,7 +44,7 @@ Every training number on screen is computed from the sensor signals with publish
 | Energy | kcal/min = (a + b·HR + c·kg + d·age) ÷ 4.184 | Keytel 2005 | Live calories |
 | SpO₂ | R = (ACred/DCred) ÷ (ACir/DCir), SpO₂ ≈ 110 − 25 R; readings flagged while moving | — | Live tile, Summary (SpO₂ + temperature with hard reps shaded) |
 | Heat strain PSI | 5 (T − T0)/(39.5 − T0) + 5 (HR − HR0)/(180 − HR0), 0–10 | Moran 1998 | Live tile, Summary |
-| HR cross-check | ECG R-peak rate vs optical pulse rate; > 5 bpm apart = motion artefact | — | Heart |
+| HR cross-check | ECG R-peak rate vs optical pulse rate; > 5 bpm apart = optical artefact | — | Heart |
 
 Population formulas carry individual error — the screens say so, and HRmax can be overridden in the profile. Choose **Interval Run** (5 × 3 min hard / 2 min easy) in Start Activity to see the zone chart, SpO₂ dips, heat strain and a live heart-rate-recovery capture; stop right after a hard rep to measure HRR from the peak.
 

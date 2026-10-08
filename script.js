@@ -167,12 +167,12 @@
         actDistance: f.distance(running ? s.distanceM / 1000 : 0),
         actPace: running && s.paceSec && s.elapsed > 20 && s.paceSec <= paceCap ? f.pace(s.paceSec, false) + ' /' + f.distUnit() : '—',
         actAvgPace: running && s.avgPace && s.elapsed > 20 && s.avgPace <= paceCap ? f.pace(s.avgPace, false) + ' /' + f.distUnit() : '—',
-        actCalories: running ? Math.round(s.calories) : 0, actElevation: running ? s.elevation : 0, actSteps: running ? BL.fmtNumber(s.steps) : '0',
+        actCalories: running ? Math.round(s.calories) : 0, actElevation: running ? s.elevation : 0, actAvgHr: running && s.hrTime > 0 ? Math.round(s.hrSum / s.hrTime) : '—',
         actStateText: act.state === 'paused' ? 'PAUSED' : running ? 'ACTIVE' : 'IDLE',
         actStateBadge: act.state === 'paused' ? 'is-paused' : running ? 'is-active' : 'is-idle',
         actTrimp, actZone, actZoneName,
-        psi: (vit.psi || 0).toFixed(1),
-        spo2Flag: vit.spo2Reliable === false ? ' · moving' : '',
+        psi: (vit.psi || 0).toFixed(1), psiLabel: `${BL.metrics.psiLabel(vit.psi || 0)} · HR + temperature`,
+        spo2Flag: vit.spo2Reliable === false ? ' · unstable' : '',
         gpsStrength: gps, gpsChip: 'GPS ' + gps, gpsChipLong: gpsOn ? 'GPS Connected' : 'GPS Unavailable', gpsDot: gpsOn ? 'status-dot--live' : 'status-dot--off',
         simSpeed: `×${act.speedMul}`,
         lastActivityName: last ? last.name : '—',
@@ -188,7 +188,7 @@
       const hrr = ctx.hrr;
       const running = this.activity.isRunning();
       const phase = this.sim.activity ? this.sim.activity.phase : 'rest';
-      // optical pulse rate: agrees at rest, drifts apart on hard intervals (motion artefact)
+      // optical pulse rate: agrees at rest, drifts apart on hard intervals (optical artefact — flagged by the ECG cross-check)
       const amp = running && phase === 'hard' ? 7 : running ? 2.6 : 1.2;
       const ppgHr = Math.round(s.hr + amp * Math.sin(Date.now() / 1900) + (running && phase === 'hard' ? 2 : 0));
       const cc = M.crossCheck(s.hr, ppgHr);
@@ -222,7 +222,7 @@
       const ecg = BL.screens.ecg ? BL.screens.ecg.vm() : {};
       const weekKm = BL.sum(BL.data.WEEK.distance) + s.distanceKm;
       return Object.assign({
-        hr: s.hr, restingHr: s.restingHr, hrMax: s.hrMax, hrv: s.hrv, spo2: s.spo2, resp: s.resp,
+        hr: s.hr, restingHr: s.restingHr, hrMax: s.hrMax, hrv: s.hrv, spo2: s.spo2,
         hrStatus: d.hrStatus, hrStatusBadge: d.hrStatusColor,
         temp: f.temp(s.temp), tempUnit: f.tempUnit(), tempStatus: d.tempStatus, tempStatusBadge: d.tempStatusColor,
         tempBaseline: f.tempWithUnit(s.tempBaseline), tempDeviation: f.tempDelta(s.tempDeviation),
@@ -232,7 +232,7 @@
         recovery: s.recovery, recoveryStatus: d.recoveryStatus, recoveryStatusBadge: d.recoveryBadge, recoveryStatusLong: d.recoveryStatusLong, recoveryStatusLongBadge: d.recoveryBadge,
         stress: s.stress, stressStatus: d.stressStatus, stressStatusBadge: d.stressBadge,
         sleepTotal: BL.data.SLEEP.total,
-        stepsFmt: BL.fmtNumber(s.steps), stepsPct: clamp((s.steps / p.stepGoal) * 100, 0, 100), stepGoalFmt: BL.fmtNumber(p.stepGoal),
+        activePct: clamp((s.activeMinutes / (p.activeGoal || 60)) * 100, 0, 100), activeGoalFmt: `${p.activeGoal || 60} min`,
         calories: s.calories, distanceFmt: f.distance(s.distanceKm, 1), distUnit: f.distUnit(), activeMinutes: s.activeMinutes,
         trainingLoad: s.trainingLoad,
         jacketBattery: dev.battery, firmware: dev.firmware, btStatus: dev.btStatus, signalQuality: dev.signalQuality, signalQualityText: dev.connected ? `Signal ${dev.signal}` : 'No signal', noiseLevel: dev.connected ? dev.noise : '—', gpsStatus: dev.gpsStatus, lastSync: dev.lastSyncText(),
@@ -327,11 +327,11 @@
 
     exportDaily() {
       const s = this.sim.state, hour = new Date().getHours(), ctx = this.metricsContext(), rd = ctx.readinessData, r = rd.readiness, a = ctx.athlete;
-      const hrv = ctx.hrv;
+      const hrv = ctx.hrv, ecgScreen = BL.screens.ecg;
       const rows = [['Biotex Life — daily health metrics', new Date().toISOString().slice(0, 10)], [], ['Metric', 'Value', 'Unit'],
-        ['Heart rate (current)', s.hr, 'bpm'], ['Resting heart rate', s.restingHr, 'bpm'], ['Max heart rate today', s.hrMax, 'bpm'], ['HRmax (profile / Tanaka)', a.max, 'bpm'], ['HRV', s.hrv, 'ms'], ['SpO2', s.spo2, '%'], ['Respiration', s.resp, '/min'],
+        ['Heart rate (current)', s.hr, 'bpm'], ['Resting heart rate', s.restingHr, 'bpm'], ['Max heart rate today', s.hrMax, 'bpm'], ['HRmax (profile / Tanaka)', a.max, 'bpm'], ['HRV', s.hrv, 'ms'], ['SpO2', s.spo2, '%'], ['Breathing rate (ECG estimate)', hrv && ecgScreen && ecgScreen.breathing != null ? Math.round(ecgScreen.breathing) : '', '/min'],
         ['Body temperature', s.temp, '°C'], ['Temperature baseline', s.tempBaseline, '°C'], ['Heat strain (PSI)', s.psi, '/10'], ['Body battery', s.bodyBattery, '/100'], ['Fatigue', s.fatigue, '/100'], ['Recovery', s.recovery, '%'], ['Stress', s.stress, '/100'], ['Sleep score', s.sleepScore, '/100'],
-        ['Steps', s.steps, ''], ['Calories', s.calories, 'kcal'], ['Distance', s.distanceKm.toFixed(2), 'km'], ['Active minutes', s.activeMinutes, 'min'], ['Jacket battery', this.device.battery, '%'],
+        ['Calories', s.calories, 'kcal'], ['Distance', s.distanceKm.toFixed(2), 'km'], ['Active minutes', s.activeMinutes, 'min'], ['Jacket battery', this.device.battery, '%'],
         [], ['Calculated metric', 'Value', 'Unit'],
         ['ln RMSSD today', rd.lnToday, 'ln ms'], ['ln RMSSD normal range', `${rd.range.from}–${rd.range.to}`, 'ln ms'], ['HRV z-score', r.hrvZ, ''], ['Resting HR z-score', r.rhrZ, ''], ['Readiness', r.label, ''],
         ['Live RMSSD (ECG)', hrv ? Math.round(hrv.rmssd) : '', 'ms'], ['Live SDNN (ECG)', hrv ? Math.round(hrv.sdnn) : '', 'ms'], ['Live pNN50 (ECG)', hrv ? hrv.pnn50 : '', '%'],

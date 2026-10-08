@@ -65,7 +65,7 @@
     sex: 'male',
     heightCm: 176,
     weightKg: 72,
-    stepGoal: 10000,
+    activeGoal: 60, // daily active minutes (heart-rate based)
     fitnessGoal: 'Improve endurance',
     maxHr: 181, // Tanaka 2001: 208 − 0.7 × age
     emergencyName: '',

@@ -69,7 +69,7 @@
       this.session = {
         id: BL.uid(), type: type.id, typeDef: type, name: BL.data.activityName(type.id, new Date(now)), startedAt: now,
         elapsed: 0, distanceM: 0, paceSec: 0, avgPace: 0, elevGain: 0, lastElev: this.elevationAt(0), elevation: 0,
-        calories: 0, steps: 0, startCal: s.calories, startSteps: s.steps,
+        calories: 0, startCal: s.calories,
         hrSum: 0, hrTime: 0, hrMax: 0, tempSum: 0, tempStart: s.temp, tempMax: s.temp, zonesSec: [0, 0, 0, 0, 0], belowSec: 0, psiPeak: 0,
         spo2Min: 100, spo2BelowSec: 0, spo2Rest: s.spo2,
         fatigueStart: s.fatigue, bbStart: s.bodyBattery, loadStart: s.trainingLoad,
@@ -123,7 +123,6 @@
       if (zi >= 0) s.zonesSec[zi] += dt; else s.belowSec += dt;
       if (vit.spo2Reliable) { s.spo2Min = Math.min(s.spo2Min, vit.spo2Exact || vit.spo2); if ((vit.spo2Exact || vit.spo2) < 95) s.spo2BelowSec += dt; }
       s.calories = Math.max(0, vit.calories - s.startCal);
-      s.steps = Math.max(0, vit.steps - s.startSteps);
       /* route */
       if (t.speedKmh > 0) { const pos = BL.RouteUtil.positionAt(this.route, this.cum, s.distanceM); s.position = pos.latlng; s.path = pos.path; }
       /* GPS quality flicker */
@@ -183,7 +182,7 @@
         id: s.id, type: s.type, name: s.name, date: s.startedAt, durationSec: dur,
         distanceKm: round(distanceKm, 2), avgPace: s.typeDef.speedKmh > 0 && distanceKm > 0.02 ? Math.round(dur / distanceKm) : 0,
         calories: Math.round(s.calories), avgHr, maxHr: Math.round(s.hrMax || vit.hr),
-        elevation: Math.round(s.elevGain), steps: Math.round(s.steps), avgTemp: round(s.hrTime ? s.tempSum / s.hrTime : vit.temp, 1),
+        elevation: Math.round(s.elevGain), avgTemp: round(s.hrTime ? s.tempSum / s.hrTime : vit.temp, 1),
         fatigueDelta: vit.fatigue - s.fatigueStart, bbDelta: vit.bodyBattery - s.bbStart, load: vit.trainingLoad,
         zones: s.zonesSec.map((v) => round(v / 60, 1)), belowMin: round(s.belowSec / 60, 1),
         trimp: M().trimp(dur / 60, avgHr, a.rest, a.max, a.sex),
@@ -331,7 +330,7 @@
       return `${a.name} — Biotex Life\n${f.distance(a.distanceKm)} ${f.distUnit()} · ${BL.fmtClock(a.durationSec)} · ${f.pace(a.avgPace)}\nAvg HR ${a.avgHr} BPM · Max ${a.maxHr} BPM · Load ${Math.round(a.trimp || 0)} TRIMP · ${a.calories} kcal\nRecorded with the Biotex ECG Jacket`;
     }
     static toCSV(a) {
-      const rows = [['Field', 'Value'], ['Activity', a.name], ['Type', a.type], ['Date', new Date(a.date).toISOString()], ['Duration (s)', a.durationSec], ['Distance (km)', a.distanceKm], ['Average pace (s/km)', a.avgPace], ['Calories (kcal)', a.calories], ['Average HR (bpm)', a.avgHr], ['Max HR (bpm)', a.maxHr], ['Session load (TRIMP)', a.trimp], ['HR drift (%)', a.drift], ['HRR60 (bpm)', a.hrr60], ['HRR120 (bpm)', a.hrr120], ['Peak heat strain (PSI)', a.psiPeak], ['Lowest SpO2 (%)', a.spo2Min], ['Time below 95% SpO2 (min)', a.timeBelow95], ['Temperature rise (C)', a.tempRise], ['Elevation gain (m)', a.elevation], ['Steps', a.steps], ['Average temperature (C)', a.avgTemp], ['Fatigue change', a.fatigueDelta], ['Body battery change', a.bbDelta], [], ['t (s)', 'hr', 'pace (s/km)', 'elevation (m)', 'temp (C)', 'spo2 (%)', 'spo2 reliable', 'psi', 'phase', 'fatigue', 'body battery', 'distance (m)']];
+      const rows = [['Field', 'Value'], ['Activity', a.name], ['Type', a.type], ['Date', new Date(a.date).toISOString()], ['Duration (s)', a.durationSec], ['Distance (km)', a.distanceKm], ['Average pace (s/km)', a.avgPace], ['Calories (kcal)', a.calories], ['Average HR (bpm)', a.avgHr], ['Max HR (bpm)', a.maxHr], ['Session load (TRIMP)', a.trimp], ['HR drift (%)', a.drift], ['HRR60 (bpm)', a.hrr60], ['HRR120 (bpm)', a.hrr120], ['Peak heat strain (PSI)', a.psiPeak], ['Lowest SpO2 (%)', a.spo2Min], ['Time below 95% SpO2 (min)', a.timeBelow95], ['Temperature rise (C)', a.tempRise], ['Elevation gain (m)', a.elevation], ['Time in Z4-Z5 (min)', a.zones ? round(a.zones[3] + a.zones[4], 1) : ''], ['Average temperature (C)', a.avgTemp], ['Fatigue change', a.fatigueDelta], ['Body battery change', a.bbDelta], [], ['t (s)', 'hr', 'pace (s/km)', 'elevation (m)', 'temp (C)', 'spo2 (%)', 'spo2 reliable', 'psi', 'phase', 'fatigue', 'body battery', 'distance (m)']];
       (a.samples && a.samples.length ? a.samples : ActivityTracker.syntheticSamples(a)).forEach((s) => rows.push([s.t, s.hr, s.pace, s.elev, s.temp, s.spo2, s.spo2Ok ? 1 : 0, s.psi, s.phase, s.fatigue, s.bb, s.dist]));
       return BL.toCSV(rows);
     }

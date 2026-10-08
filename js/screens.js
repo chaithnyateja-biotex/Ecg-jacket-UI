@@ -393,7 +393,7 @@
       const set = (k, v) => $$(`[data-sum-field="${k}"]`, this.screen).forEach((n) => { n.textContent = v; });
       set('typeLabel', t.label.toUpperCase()); set('name', a.name); set('dateText', `${BL.fmtRelativeDay(a.date)} · ${BL.fmtTime(a.date)} · ${a.route || 'Hyderabad'}`);
       set('distance', f.distance(a.distanceKm)); set('duration', BL.fmtClock(a.durationSec)); set('avgPace', a.avgPace ? f.pace(a.avgPace, false) + '/' + f.distUnit() : '—');
-      set('calories', a.calories); set('avgHr', a.avgHr); set('maxHr', a.maxHr); set('elevation', a.elevation); set('steps', BL.fmtNumber(a.steps)); set('avgTemp', f.tempWithUnit(a.avgTemp));
+      set('calories', a.calories); set('avgHr', a.avgHr); set('maxHr', a.maxHr); set('elevation', a.elevation); set('hardMin', a.zones ? (a.zones[3] + a.zones[4]).toFixed(1) : '—'); set('avgTemp', f.tempWithUnit(a.avgTemp));
       set('trimp', Math.round(a.trimp || 0)); set('drift', a.drift == null ? '—' : (a.drift >= 0 ? '+' : '') + a.drift.toFixed(1)); set('psiPeak', a.psiPeak != null ? a.psiPeak.toFixed(1) : '—');
       set('spo2Rest', a.spo2Rest != null ? a.spo2Rest : '98'); set('spo2Min', a.spo2Min != null ? a.spo2Min.toFixed(1) : '—'); set('timeBelow95', a.timeBelow95 != null ? a.timeBelow95 : 0); set('tempRise', f.tempDelta(a.tempRise || 0));
       const ath = A().activity.athlete(); set('zoneBasis', `rest ${ath.rest} · max ${ath.max} bpm`); set('zoneNote', t.intervals ? 'How to read it: hard reps should reach Z5 and the easy jogs should fall back towards Z2–Z3. If the recoveries stop dropping, the session is too hard or you started it tired.' : 'Zones set from your resting and max heart rate (Karvonen). Steady sessions should sit in Z2–Z3; time in Z4–Z5 drives the session load up fast.');
@@ -592,7 +592,7 @@
       const temp = (arr) => arr.map((v) => parseFloat(f.temp(v, 2)));
       if (p === 'day') {
         const prof = [0, 0, 0, 0, 0, 0, 0.02, 0.1, 0.22, 0.09, 0.06, 0.06, 0.05, 0.05, 0.04, 0.04, 0.04, 0.03, 0.15, 0.03, 0.01, 0.01, 0, 0];
-        const stepsH = prof.map((w, i) => (i <= hour ? Math.round(w * s.steps) : null));
+        const activeH = prof.map((w, i) => (i <= hour ? Math.round(w * s.activeMinutes) : null));
         const bb = BL.data.BB_24.slice(); bb[hour] = s.bodyBattery;
         const hr = BL.data.HR_24.slice(); hr[hour] = s.hr;
         const tp = A().sim.tempHistory.slice(); tp[hour] = s.temp;
@@ -605,7 +605,7 @@
           ['Recovery', 'line', rec, 'green', '%', `${s.recovery}`, 'now'],
           ['Fatigue', 'line', fat, 'orange', '/100', `${s.fatigue}`, 'now'],
           ['Body Battery', 'line', bb, 'aqua', '/100', `${s.bodyBattery}`, 'now'],
-          ['Steps', 'bar', stepsH, 'blue', 'steps', BL.fmtNumber(s.steps), 'today'],
+          ['Active Minutes', 'bar', activeH, 'blue', 'min', `${s.activeMinutes}`, 'today · HR-based'],
           ['Distance', 'bar', prof.map((w, i) => (i <= hour ? round(parseFloat(f.distance(w * s.distanceKm, 2)), 2) : null)), 'aqua', f.distUnit(), f.distance(s.distanceKm, 1), 'today'],
           ['Calories', 'bar', kcalH, 'orange', 'kcal', `${s.calories}`, 'today'],
           ['Temperature', 'line', temp(tp), 'orange', f.tempUnit(), f.temp(s.temp), 'now', { band: { from: parseFloat(f.temp(36.4, 2)), to: parseFloat(f.temp(36.8, 2)) }, formatY: (v) => v.toFixed(1) }],
@@ -617,9 +617,9 @@
       const W = BL.data.WEEK, M = BL.data.MONTH, Y = BL.data.YEAR;
       const labels = p === 'week' ? dayLabels() : p === 'month' ? Array.from({ length: 30 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - 29 + i); return `${d.getDate()}`; }) : Array.from({ length: 12 }, (_, i) => { const d = new Date(); d.setMonth(d.getMonth() - 11 + i); return BL.MONTHS_SHORT[d.getMonth()]; });
       const src = p === 'week' ? {
-        hr: weekSeries([74, 72, 76, 71, 73, 70], s.hr), recovery: weekSeries(W.recovery, s.recovery), fatigue: weekSeries(W.fatigue, s.fatigue), bb: weekSeries(W.bodyBattery, s.bodyBattery), steps: weekSeries(W.steps, s.steps), distance: weekSeries(W.distance, round(s.distanceKm, 1)), calories: weekSeries(W.calories, s.calories), temp: weekSeries(W.temp, round(s.temp, 1)), load: A().activity.dailyLoads().slice(-7), hrv: weekSeries(W.hrv, A().restingSnapshot().hrv), sleep: weekSeries(W.sleepHours, BL.data.SLEEP_TODAY_HOURS),
-      } : p === 'month' ? { hr: M.heartRate, recovery: M.recovery, fatigue: M.fatigue, bb: M.bodyBattery, steps: M.steps, distance: M.distance, calories: M.calories, temp: M.temp, load: M.trainingLoad, hrv: M.hrv, sleep: M.sleepHours }
-        : { hr: Y.heartRate, recovery: Y.recovery, fatigue: Y.fatigue, bb: Y.bodyBattery, steps: Y.steps, distance: Y.distance, calories: Y.calories, temp: Y.temp, load: Y.trainingLoad, hrv: Y.hrv, sleep: Y.sleepHours };
+        hr: weekSeries([74, 72, 76, 71, 73, 70], s.hr), recovery: weekSeries(W.recovery, s.recovery), fatigue: weekSeries(W.fatigue, s.fatigue), bb: weekSeries(W.bodyBattery, s.bodyBattery), active: weekSeries(W.activeMinutes, s.activeMinutes), distance: weekSeries(W.distance, round(s.distanceKm, 1)), calories: weekSeries(W.calories, s.calories), temp: weekSeries(W.temp, round(s.temp, 1)), load: A().activity.dailyLoads().slice(-7), hrv: weekSeries(W.hrv, A().restingSnapshot().hrv), sleep: weekSeries(W.sleepHours, BL.data.SLEEP_TODAY_HOURS),
+      } : p === 'month' ? { hr: M.heartRate, recovery: M.recovery, fatigue: M.fatigue, bb: M.bodyBattery, active: M.activeMinutes, distance: M.distance, calories: M.calories, temp: M.temp, load: M.trainingLoad, hrv: M.hrv, sleep: M.sleepHours }
+        : { hr: Y.heartRate, recovery: Y.recovery, fatigue: Y.fatigue, bb: Y.bodyBattery, active: Y.activeMinutes, distance: Y.distance, calories: Y.calories, temp: Y.temp, load: Y.trainingLoad, hrv: Y.hrv, sleep: Y.sleepHours };
       const sumLabel = p === 'week' ? 'this week' : p === 'month' ? '30 days' : '12 months';
       const avgOf = (arr) => Math.round(BL.avg(arr));
       return { labels, labelEvery: p === 'month' ? 5 : 1, items: [
@@ -627,7 +627,7 @@
         ['Recovery', 'line', src.recovery, 'green', '%', `${avgOf(src.recovery)}`, 'avg'],
         ['Fatigue', 'line', src.fatigue, 'orange', '/100', `${avgOf(src.fatigue)}`, 'avg'],
         ['Body Battery', 'line', src.bb, 'aqua', '/100', `${avgOf(src.bb)}`, 'avg end-of-day'],
-        ['Steps', 'bar', src.steps, 'blue', 'steps', BL.fmtNumber(BL.sum(src.steps)), sumLabel],
+        ['Active Minutes', 'bar', src.active, 'blue', 'min', BL.fmtNumber(Math.round(BL.sum(src.active))), sumLabel + ' · HR-based'],
         ['Distance', 'bar', dist(src.distance), 'aqua', f.distUnit(), f.distance(BL.sum(src.distance), 1), sumLabel],
         ['Calories', 'bar', src.calories, 'orange', 'kcal', BL.fmtNumber(BL.sum(src.calories)), sumLabel],
         ['Temperature', 'line', temp(src.temp), 'orange', f.tempUnit(), f.temp(BL.avg(src.temp)), 'avg', { band: { from: parseFloat(f.temp(36.4, 2)), to: parseFloat(f.temp(36.8, 2)) }, formatY: (v) => v.toFixed(1) }],
@@ -777,7 +777,7 @@
       const p = BL.settings.profile(), s = BL.settings, f = BL.fmt, row = UI().profileRow;
       const tanaka = BL.metrics.hrMax(p.age);
       $('[data-profile-list="body"]').innerHTML = row('age', 'Age', `${p.age} yrs`, 'user') + row('sex', 'Sex (for formulas)', p.sex === 'female' ? 'Female' : 'Male', 'user') + row('height', 'Height', f.height(p.heightCm), 'ruler') + row('weight', 'Weight', f.weight(p.weightKg), 'scale');
-      $('[data-profile-list="goals"]').innerHTML = row('stepGoal', 'Daily step goal', BL.fmtNumber(p.stepGoal), 'steps') + row('fitnessGoal', 'Fitness goal', p.fitnessGoal, 'target') + row('maxHr', 'Max heart rate', `${p.maxHr} BPM${p.maxHr === tanaka ? ' · Tanaka' : ' · custom'}`, 'heart') + row('vo2', 'VO₂max estimate', `${BL.metrics.vo2max(A().sim.state.restingHr, p.maxHr)} ml/kg/min`, 'trend-up');
+      $('[data-profile-list="goals"]').innerHTML = row('activeGoal', 'Daily active-minutes goal', `${p.activeGoal || 60} min · heart-rate based`, 'timer') + row('fitnessGoal', 'Fitness goal', p.fitnessGoal, 'target') + row('maxHr', 'Max heart rate', `${p.maxHr} BPM${p.maxHr === tanaka ? ' · Tanaka' : ' · custom'}`, 'heart') + row('vo2', 'VO₂max estimate', `${BL.metrics.vo2max(A().sim.state.restingHr, p.maxHr)} ml/kg/min`, 'trend-up');
       $('[data-profile-list="units"]').innerHTML = row('unitSystem', 'Preferred units', s.get('unitSystem') === 'imperial' ? 'Imperial' : 'Metric', 'sliders') + row('distanceUnit', 'Distance units', s.get('distanceUnit') === 'mi' ? 'Miles' : 'Kilometres', 'route') + row('tempUnit', 'Temperature units', s.get('tempUnit') === 'F' ? 'Fahrenheit (°F)' : 'Celsius (°C)', 'thermometer');
     },
     async edit(key) {
@@ -791,7 +791,7 @@
         case 'vo2': UI().modal({ title: 'VO₂max estimate', body: `<p>VO₂max ≈ 15.3 × HRmax ÷ HRrest (Uth 2004).</p><p>With HRmax ${p.maxHr} and resting HR ${A().sim.state.restingHr}: <b>${BL.metrics.vo2max(A().sim.state.restingHr, p.maxHr)} ml/kg/min</b>.</p><p class="text-muted small">A rough guide — watch the trend more than the number.</p>`, actions: [{ label: 'Close', cls: 'btn--primary' }] }); break;
         case 'height': v = await num('Height', 'Centimetres', p.heightCm, 100, 230, 1); if (v != null) s.setProfile({ heightCm: Math.round(v) }); break;
         case 'weight': v = await num('Weight', 'Kilograms', p.weightKg, 30, 250, 0.1); if (v != null) s.setProfile({ weightKg: round(v, 1) }); break;
-        case 'stepGoal': v = await num('Daily step goal', 'Steps', p.stepGoal, 1000, 50000, 500); if (v != null) { s.setProfile({ stepGoal: Math.round(v) }); BL.toast('Step goal updated', 'success'); } break;
+        case 'activeGoal': v = await num('Daily active-minutes goal', 'Minutes at or above 30 % of heart-rate reserve', p.activeGoal || 60, 10, 300, 5); if (v != null) { s.setProfile({ activeGoal: Math.round(v) }); BL.toast('Step goal updated', 'success'); } break;
         case 'maxHr': v = await num('Max heart rate', 'BPM', p.maxHr, 120, 220, 1, `Tanaka estimate for your age: ${BL.metrics.hrMax(p.age)} bpm. An all-out field test is more accurate.`); if (v != null) s.setProfile({ maxHr: Math.round(v) }); break;
         case 'fitnessGoal': v = await UI().form('Fitness goal', [{ key: 'goal', label: 'Goal', type: 'select', value: p.fitnessGoal, options: [['Improve endurance', 'Improve endurance'], ['Build strength', 'Build strength'], ['Lose weight', 'Lose weight'], ['Improve recovery', 'Improve recovery'], ['Maintain health', 'Maintain health'], ['Race preparation', 'Race preparation']] }]); if (v) s.setProfile({ fitnessGoal: v.goal }); break;
         case 'unitSystem': v = await UI().form('Preferred units', [{ key: 'u', label: 'System', type: 'segment', value: s.get('unitSystem'), options: [['metric', 'Metric'], ['imperial', 'Imperial']] }]); if (v) { s.set('unitSystem', v.u); s.set('distanceUnit', v.u === 'imperial' ? 'mi' : 'km'); s.set('tempUnit', v.u === 'imperial' ? 'F' : 'C'); BL.toast('Units updated', 'success'); } break;
@@ -854,8 +854,8 @@
     enter() { this.render(); },
     render() { UI().renderHistory(this.list, A().activity.getHistory(this.filter)); },
     exportAll() {
-      const rows = [['id', 'name', 'type', 'date', 'duration_s', 'distance_km', 'avg_pace_s_per_km', 'calories', 'avg_hr', 'max_hr', 'elevation_m', 'steps', 'avg_temp_c', 'fatigue_delta', 'body_battery_delta', 'training_load']];
-      A().activity.getHistory().forEach((a) => rows.push([a.id, a.name, a.type, new Date(a.date).toISOString(), a.durationSec, a.distanceKm, a.avgPace, a.calories, a.avgHr, a.maxHr, a.elevation, a.steps, a.avgTemp, a.fatigueDelta, a.bbDelta, a.load]));
+      const rows = [['id', 'name', 'type', 'date', 'duration_s', 'distance_km', 'avg_pace_s_per_km', 'calories', 'avg_hr', 'max_hr', 'elevation_m', 'avg_temp_c', 'fatigue_delta', 'body_battery_delta', 'training_load']];
+      A().activity.getHistory().forEach((a) => rows.push([a.id, a.name, a.type, new Date(a.date).toISOString(), a.durationSec, a.distanceKm, a.avgPace, a.calories, a.avgHr, a.maxHr, a.elevation, a.avgTemp, a.fatigueDelta, a.bbDelta, a.load]));
       BL.downloadFile('biotex-activities.csv', BL.toCSV(rows), 'text/csv'); BL.toast('Activity history exported', 'success');
     },
   };

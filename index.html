@@ -220,15 +220,13 @@
                     <circle class="sensor-pulse d2" cx="152" cy="130" r="14" fill="url(#sg)"/><circle cx="152" cy="130" r="4" fill="#3EE2D4"/>
                     <circle class="sensor-pulse d3" cx="130" cy="176" r="14" fill="url(#sg)"/><circle cx="130" cy="176" r="4" fill="#3EE2D4"/>
                     <circle class="sensor-pulse d4" cx="100" cy="208" r="14" fill="url(#sg)"/><circle cx="100" cy="208" r="4" fill="#3EE2D4"/>
-                    <circle class="sensor-pulse d5" cx="160" cy="208" r="14" fill="url(#sg)"/><circle cx="160" cy="208" r="4" fill="#3EE2D4"/>
                   </g>
                   <!-- labels -->
                   <g class="onb__labels" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="600" fill="#C9D3DA">
                     <path d="M108 130 H40" stroke="rgba(62,226,212,.5)"/><text x="10" y="126" fill="#3EE2D4">ECG</text>
                     <path d="M152 130 H224" stroke="rgba(62,226,212,.5)"/><text x="196" y="122">Heart</text><text x="196" y="136">Rate</text>
-                    <path d="M130 176 H226" stroke="rgba(62,226,212,.5)"/><text x="184" y="170">Respiration</text>
+                    <path d="M130 176 H226" stroke="rgba(62,226,212,.5)"/><text x="196" y="170">SpO₂</text>
                     <path d="M100 208 H34" stroke="rgba(62,226,212,.5)"/><text x="6" y="204">Temp.</text>
-                    <path d="M160 208 H230" stroke="rgba(62,226,212,.5)"/><text x="192" y="204">Movement</text>
                   </g>
                 </svg>
               </div>
@@ -489,21 +487,21 @@
                 <span class="tile__value"><span data-bind="hrv">54</span><small>ms</small></span>
                 <span class="tile__sub c-green"><svg class="ico"><use href="#i-trend-up"/></svg>↑ 8% · above 7-day avg</span>
               </button>
-              <button class="tile" data-go="heart">
-                <span class="tile__label"><svg class="ico"><use href="#i-wind"/></svg>RESPIRATION</span>
-                <span class="tile__value"><span data-bind="resp">15</span><small>br/min</small></span>
-                <span class="tile__sub">Steady rhythm</span>
+              <button class="tile" data-go="temperature">
+                <span class="tile__label"><svg class="ico"><use href="#i-flame"/></svg>HEAT STRAIN</span>
+                <span class="tile__value"><span data-bind="psi">0.8</span><small>/ 10</small></span>
+                <span class="tile__sub" data-bind="psiLabel">No strain · HR + temperature</span>
               </button>
             </div>
 
             <!-- Activity row -->
             <section class="card activity-row" data-go="history" role="button" tabindex="0" aria-label="Today's activity">
-              <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-activity"/></svg>TODAY'S ACTIVITY</span><span class="text-muted small">Goal <span data-bind="stepGoalFmt">10,000</span></span></div>
+              <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-activity"/></svg>TODAY'S ACTIVITY</span><span class="text-muted small">Goal <span data-bind="activeGoalFmt">60 min</span></span></div>
               <div class="activity-row__grid">
-                <div class="stat"><svg class="stat__icon c-blue"><use href="#i-steps"/></svg><b data-bind="stepsFmt">8,642</b><span>Steps</span><div class="progress"><i data-bind-width="stepsPct"></i></div></div>
+                <div class="stat"><svg class="stat__icon c-blue"><use href="#i-timer"/></svg><b data-bind="activeMinutes">74</b><span>active min</span><div class="progress"><i data-bind-width="activePct"></i></div></div>
                 <div class="stat"><svg class="stat__icon c-orange"><use href="#i-flame"/></svg><b data-bind="calories">624</b><span>kcal</span></div>
                 <div class="stat"><svg class="stat__icon c-aqua"><use href="#i-route"/></svg><b data-bind="distanceFmt">6.4</b><span data-bind="distUnit">km</span></div>
-                <div class="stat"><svg class="stat__icon c-green"><use href="#i-timer"/></svg><b data-bind="activeMinutes">74</b><span>min</span></div>
+                <div class="stat"><svg class="stat__icon c-green"><use href="#i-target"/></svg><b data-bind="load7">315</b><span>TRIMP · 7d</span></div>
               </div>
             </section>
 
@@ -603,7 +601,7 @@
           </div>
 
           <div class="card rr-card">
-            <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-activity"/></svg>RR INTERVALS · LAST 60 BEATS</span><span class="text-muted small nowrap"><span data-bind="rrBreathing">—</span> breaths/min</span></div>
+            <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-activity"/></svg>RR INTERVALS · LAST 60 BEATS</span><span class="text-muted small nowrap"><span data-bind="rrBreathing">—</span> breaths/min · from RR rhythm</span></div>
             <div class="chart chart--sm" data-chart="rr60"></div>
             <div class="stat-grid stat-grid--5 mt-md">
               <div class="stat-box"><span>Mean RR</span><b><span data-bind="hrvMeanRR">—</span> <small>ms</small></b></div>
@@ -681,7 +679,7 @@
               <div class="live__stat"><b data-bind="actZone">—</b><span data-bind="actZoneName">Zone</span></div>
               <div class="live__stat"><b data-bind="bodyBattery">78</b><span>Body battery</span></div>
               <div class="live__stat"><b data-bind="gpsStrength">Strong</b><span>GPS</span></div>
-              <div class="live__stat"><b data-bind="actSteps">0</b><span>Steps</span></div>
+              <div class="live__stat"><b data-bind="actAvgHr">—</b><span>Avg HR</span></div>
             </div>
             <div class="live__controls" data-act-controls data-state="active">
               <button class="icon-btn icon-btn--lg" data-act="lock" aria-label="Lock controls"><svg><use href="#i-lock"/></svg></button>
@@ -758,7 +756,7 @@
             <div class="stat-box"><span>Average HR</span><b><span data-sum-field="avgHr">128</span> <small>BPM</small></b></div>
             <div class="stat-box"><span>Maximum HR</span><b><span data-sum-field="maxHr">158</span> <small>BPM</small></b></div>
             <div class="stat-box"><span>Elevation</span><b><span data-sum-field="elevation">82</span> <small>m</small></b></div>
-            <div class="stat-box"><span>Steps</span><b data-sum-field="steps">8,966</b></div>
+            <div class="stat-box"><span>Time in Z4–Z5</span><b><span data-sum-field="hardMin">—</span> <small>min</small></b></div>
             <div class="stat-box"><span>Avg temp</span><b data-sum-field="avgTemp">36.9°C</b></div>
             <div class="stat-box"><span>Fatigue change</span><b class="c-orange" data-sum-field="fatigueDelta">+9</b></div>
             <div class="stat-box"><span>Body battery change</span><b class="c-aqua" data-sum-field="bbDelta">−14</b></div>
@@ -794,7 +792,7 @@
               <div class="stat-box"><span>Time below 95 %</span><b><span data-sum-field="timeBelow95">0</span> <small>min</small></b></div>
               <div class="stat-box"><span>Temperature rise</span><b data-sum-field="tempRise">+0.6 °C</b></div>
             </div>
-            <p class="text-muted small mt-sm">Optical SpO₂ is unreliable while moving. It is sampled in the pauses and easy phases; a drop of 4 % or more from rest is the signal.</p>
+            <p class="text-muted small mt-sm">Optical SpO₂ is read only while the pulse waveform is stable — in the pauses and easy phases. A drop of 4 % or more from rest is the signal.</p>
           </div>
           <div class="card"><div class="card__head"><span class="card__label">PACE</span><span class="text-muted small">min/km</span></div><div class="chart" data-chart="sumPace"></div></div>
           <div class="card"><div class="card__head"><span class="card__label">ELEVATION</span><span class="text-muted small">m</span></div><div class="chart" data-chart="sumElev"></div></div>
@@ -882,7 +880,7 @@
             <div class="stat-box"><span>Stress</span><b data-bind="stress">22</b></div>
             <div class="stat-box"><span>Body Battery</span><b data-bind="bodyBattery">78</b></div>
             <div class="stat-box"><span>Temp. deviation</span><b data-bind="tempDeviation">+0.1°C</b></div>
-            <div class="stat-box"><span>Respiration</span><b><span data-bind="resp">15</span><small>/min</small></b></div>
+            <div class="stat-box"><span>SpO₂</span><b><span data-bind="spo2">98</span><small>%</small></b></div>
           </div>
           <div class="card">
             <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-activity"/></svg>MORNING HRV · 28 DAYS</span><span class="text-muted small">ln RMSSD on waking</span></div>
@@ -921,7 +919,7 @@
             <div class="stat-box"><span>Resting HR</span><b><span data-bind="restingHr">61</span></b></div>
             <div class="stat-box"><span>Daily Max</span><b><span data-bind="hrMax">142</span></b></div>
             <div class="stat-box"><span>HRV</span><b><span data-bind="hrv">54</span> <small>ms</small></b></div>
-            <div class="stat-box"><span>Respiration</span><b><span data-bind="resp">15</span><small>/min</small></b></div>
+            <div class="stat-box"><span>SpO₂</span><b><span data-bind="spo2">98</span><small>%</small></b></div>
           </div>
           <div class="card"><div class="card__head"><span class="card__label">24-HOUR HEART RATE</span><span class="text-muted small">bpm</span></div><div class="chart" data-chart="hr24"></div></div>
           <div class="card"><div class="card__head"><span class="card__label">HEART RATE ZONES · KARVONEN</span><span class="text-muted small" data-bind="zonesBasis">rest 61 · max 181</span></div><div class="zones" data-zones="today"></div><p class="text-muted small mt-sm">Target = HRrest + % × (HRmax − HRrest). HRmax from Tanaka (208 − 0.7 × age) unless you set it in your profile. <button class="link-btn" data-go="formulas">All formulas</button></p></div>
@@ -944,7 +942,7 @@
           </div>
           <div class="card">
             <div class="card__head"><span class="card__label">HR CROSS-CHECK · ECG vs OPTICAL</span><span class="badge badge--green" data-bind="crossCheckStatus">AGREE</span></div>
-            <div class="card__row card__row--3"><div class="kv"><b><span data-bind="hr">72</span> BPM</b><span class="kv__label">ECG (R-peaks)</span></div><div class="kv"><b><span data-bind="ppgHr">73</span> BPM</b><span class="kv__label">Optical (PPG)</span></div><div class="kv"><b data-bind="crossCheckText">Agree within 1 bpm</b><span class="kv__label">> 5 bpm apart = motion artefact</span></div></div>
+            <div class="card__row card__row--3"><div class="kv"><b><span data-bind="hr">72</span> BPM</b><span class="kv__label">ECG (R-peaks)</span></div><div class="kv"><b><span data-bind="ppgHr">73</span> BPM</b><span class="kv__label">Optical (PPG)</span></div><div class="kv"><b data-bind="crossCheckText">Agree within 1 bpm</b><span class="kv__label">> 5 bpm apart = optical artefact</span></div></div>
           </div>
           <div class="card"><div class="card__head"><span class="card__label">RESTING HR TREND</span><span class="text-muted small">7 days</span></div><div class="chart chart--sm" data-chart="rhr7"></div></div>
           <div class="card"><div class="card__head"><span class="card__label">HRV TREND</span><span class="text-muted small">7 days · ms</span></div><div class="chart chart--sm" data-chart="hrv7"></div></div>
@@ -995,7 +993,7 @@
           <div class="stat-grid stat-grid--3">
             <div class="stat-box"><span>Resting HR</span><b>58 <small>BPM</small></b></div>
             <div class="stat-box"><span>HRV</span><b>61 <small>ms</small></b></div>
-            <div class="stat-box"><span>Respiration</span><b>13<small>/min</small></b></div>
+            <div class="stat-box"><span>SpO₂ overnight</span><b>97<small>%</small></b></div>
             <div class="stat-box"><span>Temperature</span><b>36.3°C</b></div>
             <div class="stat-box stat-box--green"><span>Recovery gain</span><b>+21%</b></div>
             <div class="stat-box stat-box--aqua"><span>Body battery gain</span><b>+34</b></div>
@@ -1179,7 +1177,7 @@
           <div class="signal-grid" data-signal-map></div>
           <p class="eyebrow mt-md">Combined · only possible with two or more sensors</p>
           <div class="combined-grid" data-signal-combined></div>
-          <p class="note"><svg><use href="#i-info"/></svg>Skin temperature is not core temperature. Optical HR and SpO₂ degrade with movement, so trust them at rest, in pauses and during sleep. These are training metrics, not a medical diagnosis.</p>
+          <p class="note"><svg><use href="#i-info"/></svg>Skin temperature is not core temperature. Optical HR and SpO₂ are least reliable during hard effort, so trust them at rest, in pauses and during sleep. These are training metrics, not a medical diagnosis.</p>
         </div>
       </section>
 

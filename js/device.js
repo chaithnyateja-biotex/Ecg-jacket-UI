@@ -104,7 +104,7 @@
       });
     }
     calibrate() {
-      return this.runFlow('calibrate', ['Checking electrode contact…', 'Measuring skin impedance…', 'Zeroing motion sensors…', 'Aligning temperature baseline…', 'Verifying ECG lead quality…', 'Calibration complete'], 4200)
+      return this.runFlow('calibrate', ['Checking electrode contact…', 'Measuring skin impedance…', 'Checking optical sensor contact…', 'Aligning temperature baseline…', 'Verifying ECG lead quality…', 'Calibration complete'], 4200)
         .then((ok) => { if (ok) { this.signal = 'Excellent'; this.noise = 'Low'; this.lastSyncAt = Date.now(); this.ev.emit('change', this); } return ok; });
     }
     updateFirmware() {

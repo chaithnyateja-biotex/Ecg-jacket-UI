@@ -138,7 +138,7 @@
     psiLabel(v) { return v < 2 ? 'No strain' : v < 4 ? 'Low' : v < 6 ? 'Moderate' : v < 8 ? 'High' : 'Very high'; },
 
     /* Combined — only possible with two or more sensors */
-    crossCheck(ecgHr, ppgHr) { const diff = Math.abs(ecgHr - ppgHr); return { diff, artefact: diff > 5, label: diff > 5 ? 'Motion artefact — flag' : diff <= 1 ? 'Agree within 1 bpm' : `Agree within ${diff} bpm` }; },
+    crossCheck(ecgHr, ppgHr) { const diff = Math.abs(ecgHr - ppgHr); return { diff, artefact: diff > 5, label: diff > 5 ? 'Artefact — optical reading flagged' : diff <= 1 ? 'Agree within 1 bpm' : `Agree within ${diff} bpm` }; },
 
     /* Insight sentences from computed numbers (wellness guidance only) */
     insights(ctx) {

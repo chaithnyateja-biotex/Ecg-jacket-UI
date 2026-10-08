@@ -34,10 +34,10 @@
       this.ev = BL.emitter();
       const v = BL.data.INITIAL_VITALS;
       this.s = Object.assign({}, v, {
-        hrFloat: v.hr, tempFloat: v.temp, bbFloat: v.bodyBattery, strainAcc: 0, calFloat: v.calories, activeMinutesFloat: v.activeMinutes, stepsFloat: v.steps,
+        hrFloat: v.hr, tempFloat: v.temp, bbFloat: v.bodyBattery, strainAcc: 0, calFloat: v.calories, activeMinutesFloat: v.activeMinutes,
       });
       this.baseFatigue = v.fatigue; this.baseRecovery = v.recovery; this.baseLoad = v.trainingLoad;
-      this.hrvFloat = v.hrv; this.stressFloat = v.stress; this.spo2Float = v.spo2; this.respFloat = v.resp;
+      this.hrvFloat = v.hrv; this.stressFloat = v.stress; this.spo2Float = v.spo2;
       this.activity = null;
       this.recovery = null; // post-exercise heart-rate recovery curve
       this.hrHistory = Array.from({ length: 48 }, (_, i) => Math.round(72 + Math.sin(i / 3) * 2 + (Math.random() - 0.5) * 2));
@@ -77,8 +77,9 @@
       /* energy: Keytel 2005 from heart rate once the pulse is clearly above rest, else the activity's typical rate */
       const kcalMin = s.hr >= 95 ? BL.metrics.kcalPerMin(s.hr, p.weightKg || 72, p.age || 38, p.sex) : type.kcalPerMin;
       s.calFloat += kcalMin * simMinutes;
-      s.activeMinutesFloat += simMinutes;
-      s.stepsFloat += type.cadence * 60 * simMinutes;
+      /* active minutes are heart-rate based (no motion sensor): minutes at or above 30 % of heart-rate reserve */
+      const hrMaxP = p.maxHr || BL.metrics.hrMax(p.age || 38);
+      if (s.hr >= s.restingHr + 0.3 * (hrMaxP - s.restingHr)) s.activeMinutesFloat += simMinutes;
       s.bbDrained = round(BL.data.INITIAL_VITALS.bbDrained + (BL.data.INITIAL_VITALS.bodyBattery - s.bbFloat > 0 ? BL.data.INITIAL_VITALS.bodyBattery - s.bbFloat : 0));
       this.recompute();
     }
@@ -124,12 +125,8 @@
       this.spo2Float += (spo2Target - this.spo2Float) * 0.08 * dt + gauss() * 0.22;
       s.spo2 = clamp(Math.round(this.spo2Float), 90, 100);
       s.spo2Exact = round(this.spo2Float, 1);
+      /* optical reading is trusted only while the pulse waveform is stable (pauses, easy phases, rest) — judged from the PPG itself, not a motion sensor */
       s.spo2Reliable = !act || act.paused || act.phase === 'easy' || act.phase === 'cooldown';
-
-      /* Respiration 13–17 at rest */
-      const respTarget = act ? (act.paused ? 17 : 17 + act.type.intensity * 14) : 15 + Math.sin(t / 90) * 0.8;
-      this.respFloat += (respTarget - this.respFloat) * 0.06 * dt + gauss() * 0.12;
-      s.resp = clamp(Math.round(this.respFloat), 10, 38);
 
       /* HRV & stress drift */
       /* RMSSD falls as vagal tone withdraws with rising heart rate, then recovers slowly after exercise */
@@ -158,7 +155,6 @@
       s.trainingLoad = Math.round(clamp(this.baseLoad + s.strainAcc * 0.4, 0, 100));
       s.calories = Math.round(s.calFloat);
       s.activeMinutes = Math.round(s.activeMinutesFloat);
-      s.steps = Math.round(s.stepsFloat);
       s.tempDeviation = round(s.temp - s.tempBaseline, 2);
       /* heat strain (Moran 1998 PSI) from temperature and heart rate rise above rest */
       s.psi = round(BL.metrics.psi(s.temp, s.tempBaseline, s.hr, s.restingHr), 1);
