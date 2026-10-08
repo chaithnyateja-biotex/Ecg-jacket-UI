@@ -49,6 +49,9 @@
       this.beatStart = -1; this.nextBeat = 0; this.rrMs = 833;
       this.width = 0; this.height = 0; this.dpr = 1;
       this.lastHr = 72;
+      this.breathHz = opts.breathHz || 0.23;
+      this.onBeat = opts.onBeat || null;
+      this.hrvFn = opts.hrv || null; // target RMSSD (ms) → sets the beat-to-beat modulation depth
       this.onResize = () => this.resize();
       if (window.ResizeObserver) { this.ro = new ResizeObserver(BL.debounce(this.onResize, 60)); this.ro.observe(canvas.parentElement || canvas); }
       else window.addEventListener('resize', this.onResize);
@@ -145,10 +148,18 @@
         const hr = clamp(this.hrProvider() || 72, 30, 220);
         this.lastHr = hr;
         const rr = 60 / hr;
-        this.rrMs = rr * 1000 * (1 + gauss() * 0.02); // beat-to-beat variability
+        /* beat-to-beat variability: respiratory sinus arrhythmia (~14 breaths/min) + small random component */
+        /* respiratory sinus arrhythmia + random jitter, scaled so RMSSD of the RR series ≈ the target HRV:
+           for a sinusoid of amplitude A at 0.23 Hz the mean successive difference ≈ 0.86 · A */
+        const target = this.hrvFn ? this.hrvFn() : null;
+        const depth = target != null ? Math.min(0.12, (target / 0.86) * 0.8 / (rr * 1000)) : (hr < 100 ? 0.045 : 0.015);
+        const jitter = target != null ? Math.min(0.03, (target * 0.45) / (rr * 1000)) : 0.012;
+        const rsa = 1 + depth * Math.sin(2 * Math.PI * this.breathHz * this.beatStart + 0.4);
+        this.rrMs = rr * 1000 * rsa * (1 + gauss() * jitter);
         this.nextBeat = this.beatStart + this.rrMs / 1000;
+        if (this.onBeat) { try { this.onBeat(Math.round(this.rrMs), this.beatStart); } catch (e) { /* listener error must not stop the trace */ } }
       }
-      const resp = 2 * Math.PI * 0.27 * tt;
+      const resp = 2 * Math.PI * this.breathHz * tt;
       let v = this.beatStart >= 0 ? beatValue((tt - this.beatStart) * 1000, this.rrMs, resp) : 0;
       v += 0.035 * Math.sin(resp);                 // baseline wander (respiration)
       v += gauss() * (this.mini ? 0.006 : 0.008);  // sensor noise

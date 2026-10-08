@@ -157,6 +157,7 @@
       this.screen = $('[data-screen="ecg"]');
       this.controls = $('[data-ecg-controls]');
       this.state = 'idle'; this.elapsed = 0; this.samples = []; this.timer = null; this.lastTs = 0;
+      this.rr = []; this.rrAll = []; this.hrvStats = null; this.breathing = null; this.lastRrDraw = 0;
       const saved = BL.storage.get('ecgSessions', null);
       this.sessions = Array.isArray(saved) ? saved : BL.data.SEED_ECG.slice();
       if (!Array.isArray(saved)) this.persist();
@@ -164,7 +165,23 @@
       on(document, 'click', '[data-ecg-session]', (e, b) => { const art = b.closest('[data-session]'); this.sessionAction(b.dataset.ecgSession, art.dataset.session); });
       this.renderHistory();
     },
-    enter() { if (A().ecgMain && A().device.connected) { A().ecgMain.reset(); A().ecgMain.start(); } UI().countScreen(this.screen); this.renderHistory(); },
+    enter() { if (A().ecgMain && A().device.connected) { A().ecgMain.reset(); A().ecgMain.start(); } UI().countScreen(this.screen); this.renderHistory(); this.renderRR(true); },
+    /* one cardiac cycle from the ECG engine → RR interval buffer → HRV */
+    beat(rrMs) {
+      this.rr.push(rrMs); if (this.rr.length > 60) this.rr.shift();
+      if (this.state === 'recording') { this.rrAll.push(rrMs); if (this.rrAll.length > 4000) this.rrAll.shift(); }
+      if (this.rr.length >= 10) { this.hrvStats = BL.metrics.hrv(this.rr); this.breathing = BL.metrics.breathingRate(this.rr); } // RMSSD needs a run of beats before it means anything
+      const now = performance.now();
+      if (A().nav.current === 'ecg' && now - this.lastRrDraw > 900) { this.lastRrDraw = now; this.renderRR(false); A().refresh(true); }
+    },
+    renderRR(animate) {
+      const data = this.rr.slice();
+      const n = data.length;
+      const labels = data.map((_, i) => (i === 0 ? '1' : i === n - 1 ? `beat ${n}` : (i + 1) % 10 === 0 ? String(i + 1) : ''));
+      const cfg = { type: 'line', series: [{ data, color: 'blue', smooth: false, fill: false, width: 2 }], labels, labelEvery: 1, unit: 'ms', formatValue: (v) => `${Math.round(v)}`, tooltipLabels: data.map((_, i) => `Beat ${i + 1}`), yMin: Math.max(300, Math.min.apply(null, data.length ? data : [800]) - 60), yMax: Math.max.apply(null, data.length ? data : [900]) + 60, formatY: (v) => `${Math.round(v)}` };
+      if (!data.length) { cfg.series[0].data = []; }
+      if (CM().get('rr60')) CM().update('rr60', cfg, animate); else CM().create('rr60', $('[data-chart="rr60"]'), cfg);
+    },
     leave() { if (A().ecgMain) A().ecgMain.stop(); },
     persist() { BL.storage.set('ecgSessions', this.sessions.slice(0, 40)); },
     get recording() { return this.state === 'recording'; },
@@ -192,12 +209,13 @@
       if (!hrs.length) return { avg: 71, min: 64, max: 84 };
       return { avg: Math.round(BL.avg(hrs)), min: Math.min.apply(null, hrs), max: Math.max.apply(null, hrs) };
     },
-    stop() { this.state = 'idle'; clearInterval(this.timer); this.elapsed = 0; this.samples = []; this.renderControls(); },
+    stop() { this.state = 'idle'; clearInterval(this.timer); this.elapsed = 0; this.samples = []; this.rrAll = []; this.renderControls(); },
     save() {
       const st = this.stats();
-      const session = { id: BL.uid(), name: `ECG session · ${BL.fmtTime(Date.now())}`, date: Date.now(), durationSec: Math.max(1, Math.round(this.elapsed)), avgHr: st.avg, minHr: st.min, maxHr: st.max, quality: A().device.signal, noise: A().device.noise };
+      const hrv = this.rrAll.length >= 3 ? BL.metrics.hrv(this.rrAll) : (this.hrvStats || null);
+      const session = { id: BL.uid(), name: `ECG session · ${BL.fmtTime(Date.now())}`, date: Date.now(), durationSec: Math.max(1, Math.round(this.elapsed)), avgHr: st.avg, minHr: st.min, maxHr: st.max, quality: A().device.signal, noise: A().device.noise, hrv, breathing: this.rrAll.length >= 12 ? BL.metrics.breathingRate(this.rrAll) : this.breathing, rr: this.rrAll.slice(-600) };
       this.sessions.unshift(session); this.persist();
-      this.state = 'idle'; clearInterval(this.timer); this.elapsed = 0; this.samples = [];
+      this.state = 'idle'; clearInterval(this.timer); this.elapsed = 0; this.samples = []; this.rrAll = [];
       this.renderControls(); this.renderHistory();
       BL.toast('ECG session saved', 'success');
       A().notif.add({ kind: 'ecg', title: 'ECG session saved', body: `${BL.fmtDurationHuman(session.durationSec)} · average ${session.avgHr} BPM · signal ${session.quality}`, icon: 'ecg', color: 'aqua', screen: 'ecg', read: true });
@@ -205,14 +223,17 @@
     renderControls() { this.controls.dataset.state = this.state; },
     vm() {
       const st = this.stats();
-      return { ecgTimer: BL.fmtTimer(this.elapsed), ecgRecording: this.state === 'recording', ecgStateText: this.state === 'recording' ? 'Recording · Lead II' : this.state === 'paused' ? 'Paused' : 'Ready to record', ecgAvg: this.state === 'idle' ? 71 : st.avg, ecgMin: this.state === 'idle' ? 64 : st.min, ecgMaxHr: this.state === 'idle' ? 84 : st.max, ecgCount: this.sessions.length };
+      const h = this.hrvStats;
+      return { ecgTimer: BL.fmtTimer(this.elapsed), ecgRecording: this.state === 'recording', ecgStateText: this.state === 'recording' ? 'Recording · Lead II' : this.state === 'paused' ? 'Paused' : 'Ready to record', ecgAvg: this.state === 'idle' ? 71 : st.avg, ecgMin: this.state === 'idle' ? 64 : st.min, ecgMaxHr: this.state === 'idle' ? 84 : st.max, ecgCount: this.sessions.length,
+        hrvMeanRR: h ? h.meanRR : '—', hrvHr: h ? h.hr : '—', hrvRmssd: h ? Math.round(h.rmssd) : '—', hrvSdnn: h ? Math.round(h.sdnn) : '—', hrvPnn50: h ? h.pnn50 : '—', rrBreathing: this.breathing != null ? Math.round(this.breathing) : '—' };
     },
     renderHistory() { $$('[data-ecg-history]').forEach((c) => UI().renderEcgHistory(c, this.sessions.slice().sort((a, b) => b.date - a.date))); },
     sessionAction(a, id) {
       const s = this.sessions.find((x) => x.id === id); if (!s) return;
       if (a === 'view') {
         const body = el('div');
-        body.innerHTML = `<div class="ecg-session__strip" style="height:70px;margin-bottom:12px"><canvas data-strip="${s.avgHr}"></canvas></div><div class="kv-list"><div><span>Recorded</span><b>${BL.fmtDateTime(s.date)}</b></div><div><span>Duration</span><b>${BL.fmtDurationHuman(s.durationSec)}</b></div><div><span>Average HR</span><b>${s.avgHr} BPM</b></div><div><span>Minimum</span><b>${s.minHr} BPM</b></div><div><span>Maximum</span><b>${s.maxHr} BPM</b></div><div><span>Signal quality</span><b>${escapeHtml(s.quality)}</b></div><div><span>Noise</span><b>${escapeHtml(s.noise)}</b></div><div><span>Paper speed</span><b>25 mm/s · 10 mm/mV</b></div></div>`;
+        const h = s.hrv;
+        body.innerHTML = `<div class="ecg-session__strip" style="height:70px;margin-bottom:12px"><canvas data-strip="${s.avgHr}"></canvas></div><div class="kv-list"><div><span>Recorded</span><b>${BL.fmtDateTime(s.date)}</b></div><div><span>Duration</span><b>${BL.fmtDurationHuman(s.durationSec)}</b></div><div><span>Average HR</span><b>${s.avgHr} BPM</b></div><div><span>Minimum</span><b>${s.minHr} BPM</b></div><div><span>Maximum</span><b>${s.maxHr} BPM</b></div>${h ? `<div><span>Mean RR</span><b>${h.meanRR} ms</b></div><div><span>RMSSD</span><b>${Math.round(h.rmssd)} ms (ln ${h.lnRmssd})</b></div><div><span>SDNN</span><b>${Math.round(h.sdnn)} ms</b></div><div><span>pNN50</span><b>${h.pnn50} %</b></div><div><span>Breathing rate</span><b>${s.breathing != null ? Math.round(s.breathing) + ' /min' : '—'}</b></div>` : ''}<div><span>Signal quality</span><b>${escapeHtml(s.quality)}</b></div><div><span>Noise</span><b>${escapeHtml(s.noise)}</b></div><div><span>Paper speed</span><b>25 mm/s · 10 mm/mV</b></div></div>`;
         UI().modal({ title: s.name, body, actions: [{ label: 'Export CSV', cls: 'btn--secondary', onClick: () => { this.exportSession(s); return false; } }, { label: 'Close', cls: 'btn--primary' }] });
         requestAnimationFrame(() => BL.ECGRenderer.drawStatic(body.querySelector('canvas'), { hr: s.avgHr, mmPx: 3, seed: 3 }));
       } else if (a === 'rename') {
@@ -222,15 +243,18 @@
       } else if (a === 'export') this.exportSession(s);
     },
     exportSession(s) {
-      const rows = [['Field', 'Value'], ['Session', s.name], ['Recorded', new Date(s.date).toISOString()], ['Duration (s)', s.durationSec], ['Average HR', s.avgHr], ['Min HR', s.minHr], ['Max HR', s.maxHr], ['Signal quality', s.quality], ['Noise', s.noise], ['Sampling (demo waveform)', '250 Hz, 10 s excerpt'], [], ['t (s)', 'mV']];
+      const h = s.hrv || {};
+      const rows = [['Field', 'Value'], ['Session', s.name], ['Recorded', new Date(s.date).toISOString()], ['Duration (s)', s.durationSec], ['Average HR', s.avgHr], ['Min HR', s.minHr], ['Max HR', s.maxHr], ['Mean RR (ms)', h.meanRR != null ? h.meanRR : ''], ['RMSSD (ms)', h.rmssd != null ? h.rmssd : ''], ['SDNN (ms)', h.sdnn != null ? h.sdnn : ''], ['pNN50 (%)', h.pnn50 != null ? h.pnn50 : ''], ['Breathing rate (/min)', s.breathing != null ? s.breathing : ''], ['Signal quality', s.quality], ['Noise', s.noise], []];
+      if (s.rr && s.rr.length) { rows.push(['beat', 'RR interval (ms)']); s.rr.forEach((v, i) => rows.push([i + 1, v])); rows.push([]); }
+      rows.push(['Demo waveform', '250 Hz, 10 s excerpt'], ['t (s)', 'mV']);
       const rr = 60000 / s.avgHr;
       for (let i = 0; i < 2500; i++) { const tMs = i * 4; rows.push([(tMs / 1000).toFixed(3), BL.ecgBeatValue(tMs % rr, rr, 0).toFixed(4)]); }
       BL.downloadFile(`biotex-ecg-${new Date(s.date).toISOString().slice(0, 10)}-${s.id}.csv`, BL.toCSV(rows), 'text/csv');
       BL.toast('ECG CSV exported', 'success');
     },
     exportAll() {
-      const rows = [['id', 'name', 'date', 'duration_s', 'avg_hr', 'min_hr', 'max_hr', 'quality', 'noise']];
-      this.sessions.forEach((s) => rows.push([s.id, s.name, new Date(s.date).toISOString(), s.durationSec, s.avgHr, s.minHr, s.maxHr, s.quality, s.noise]));
+      const rows = [['id', 'name', 'date', 'duration_s', 'avg_hr', 'min_hr', 'max_hr', 'mean_rr_ms', 'rmssd_ms', 'sdnn_ms', 'pnn50_pct', 'breathing_per_min', 'quality', 'noise']];
+      this.sessions.forEach((s) => { const h = s.hrv || {}; rows.push([s.id, s.name, new Date(s.date).toISOString(), s.durationSec, s.avgHr, s.minHr, s.maxHr, h.meanRR || '', h.rmssd || '', h.sdnn || '', h.pnn50 != null ? h.pnn50 : '', s.breathing || '', s.quality, s.noise]); });
       BL.downloadFile('biotex-ecg-sessions.csv', BL.toCSV(rows), 'text/csv');
       BL.toast('ECG history exported', 'success');
     },
@@ -310,7 +334,7 @@
       else if (a === 'resume') { act.resume(); BL.toast('Activity resumed', { type: 'success', icon: 'play' }); }
       else if (a === 'lock') act.toggleLock(true);
       else if (a === 'finish') {
-        UI().confirm('Finish activity?', 'Your session summary will be generated from the recorded data.', { confirmLabel: 'Finish' }).then((ok) => {
+        UI().confirm('Finish activity?', 'Your session summary will be generated from the recorded data. Heart-rate recovery is measured for 3 minutes after you stop — stop right after your last effort and stand still.', { confirmLabel: 'Finish' }).then((ok) => {
           if (!ok) return;
           const summary = act.finish();
           if (summary) { S.summary.show(summary); A().nav.go('activity-summary', { replace: true }); }
@@ -362,13 +386,18 @@
     init() {
       this.screen = $('[data-screen="activity-summary"]'); this.current = null;
       on(this.screen, 'click', '[data-sum]', (e, b) => this.action(b.dataset.sum));
+      A().activity.on('recovery', (sum) => { if (this.current && this.current.id === sum.id && A().nav.current === 'activity-summary') this.renderRecovery(false); });
     },
     show(summary) {
       this.current = summary; const a = summary, f = BL.fmt, t = BL.data.activityType(a.type);
       const set = (k, v) => $$(`[data-sum-field="${k}"]`, this.screen).forEach((n) => { n.textContent = v; });
       set('typeLabel', t.label.toUpperCase()); set('name', a.name); set('dateText', `${BL.fmtRelativeDay(a.date)} · ${BL.fmtTime(a.date)} · ${a.route || 'Hyderabad'}`);
       set('distance', f.distance(a.distanceKm)); set('duration', BL.fmtClock(a.durationSec)); set('avgPace', a.avgPace ? f.pace(a.avgPace, false) + '/' + f.distUnit() : '—');
-      set('calories', a.calories); set('avgHr', a.avgHr); set('maxHr', a.maxHr); set('elevation', a.elevation); set('steps', BL.fmtNumber(a.steps)); set('avgTemp', f.tempWithUnit(a.avgTemp)); set('load', a.load);
+      set('calories', a.calories); set('avgHr', a.avgHr); set('maxHr', a.maxHr); set('elevation', a.elevation); set('steps', BL.fmtNumber(a.steps)); set('avgTemp', f.tempWithUnit(a.avgTemp));
+      set('trimp', Math.round(a.trimp || 0)); set('drift', a.drift == null ? '—' : (a.drift >= 0 ? '+' : '') + a.drift.toFixed(1)); set('psiPeak', a.psiPeak != null ? a.psiPeak.toFixed(1) : '—');
+      set('spo2Rest', a.spo2Rest != null ? a.spo2Rest : '98'); set('spo2Min', a.spo2Min != null ? a.spo2Min.toFixed(1) : '—'); set('timeBelow95', a.timeBelow95 != null ? a.timeBelow95 : 0); set('tempRise', f.tempDelta(a.tempRise || 0));
+      const ath = A().activity.athlete(); set('zoneBasis', `rest ${ath.rest} · max ${ath.max} bpm`); set('zoneNote', t.intervals ? 'How to read it: hard reps should reach Z5 and the easy jogs should fall back towards Z2–Z3. If the recoveries stop dropping, the session is too hard or you started it tired.' : 'Zones set from your resting and max heart rate (Karvonen). Steady sessions should sit in Z2–Z3; time in Z4–Z5 drives the session load up fast.');
+      set('repNote', t.intervals ? 'shaded columns = hard repetitions' : 'sampled in pauses and easy phases');
       const fd = $('[data-sum-field="fatigueDelta"]', this.screen); fd.textContent = (a.fatigueDelta >= 0 ? '+' : '−') + Math.abs(a.fatigueDelta); fd.className = a.fatigueDelta > 0 ? 'c-orange' : 'c-green';
       const bd = $('[data-sum-field="bbDelta"]', this.screen); bd.textContent = (a.bbDelta >= 0 ? '+' : '−') + Math.abs(a.bbDelta); bd.className = a.bbDelta < 0 ? 'c-aqua' : 'c-green';
       $('[data-sum="save"]', this.screen).innerHTML = a.saved ? `${icon('check-circle')}Saved to history` : `${icon('check')}Save Activity`;
@@ -383,18 +412,46 @@
       const labels = samples.map((s) => BL.fmtClock(s.t));
       const base = { labels, labelEvery: Math.ceil(samples.length / 5), tooltipLabels: labels };
       const mk = (key, series, extra) => { const cfg = Object.assign({ type: 'line', series: [series] }, base, extra || {}); if (CM().get(key)) CM().update(key, cfg, true); else CM().create(key, $(`[data-chart="${key}"]`, this.screen), cfg); };
-      mk('sumHr', { data: samples.map((s) => s.hr), color: 'red' }, { unit: 'bpm' });
+      const zones = A().activity.zones(), ath = A().activity.athlete();
+      const hrs = samples.map((s) => s.hr), peakIdx = hrs.indexOf(Math.max.apply(null, hrs));
+      const vbands = (a.hardReps || []).map((r) => ({ from: r.from, to: r.to, alpha: 0.07 }));
+      mk('sumHr', { data: hrs, color: 'orange', fill: false, width: 2 }, { unit: 'bpm', yMin: Math.min(80, Math.min.apply(null, hrs) - 5), yMax: ath.max, yTicks: [zones[0].min, zones[1].min, zones[2].min, zones[3].min, zones[4].min, ath.max], hbands: zones.map((z, i) => ({ from: z.min, to: i === 4 ? ath.max : zones[i + 1].min, label: `Z${z.zone}`, alpha: i % 2 ? 0.055 : 0.025, color: 'text' })), vbands, markers: peakIdx >= 0 ? [{ index: peakIdx, label: `Peak ${hrs[peakIdx]} bpm`, color: 'orange', textColor: 'text', upper: false, align: peakIdx > hrs.length * 0.7 ? 'right' : 'left', below: false }] : [] });
       mk('sumPace', { data: samples.map((s) => (s.pace ? round(s.pace / 60, 2) : null)), color: 'blue' }, { unit: 'min/km', formatY: (v) => v.toFixed(1), formatValue: (v) => (v == null ? '—' : BL.fmt.pace(v * 60)) });
       mk('sumElev', { data: samples.map((s) => s.elev), color: 'green' }, { unit: 'm' });
-      mk('sumTemp', { data: samples.map((s) => parseFloat(BL.fmt.temp(s.temp))), color: 'orange' }, { unit: BL.fmt.tempUnit(), formatY: (v) => v.toFixed(1), formatValue: (v) => v.toFixed(2) });
+      const spo2 = samples.map((s) => (s.spo2 != null ? s.spo2 : null)), okIdx = samples.map((s, i) => (s.spo2Ok === false ? null : i)).filter((i) => i != null);
+      const lowIdx = okIdx.length ? okIdx.reduce((best, i) => (spo2[i] < spo2[best] ? i : best), okIdx[0]) : -1;
+      mk('sumSpo2', { data: spo2, color: 'green', fill: false, width: 2 }, { unit: '%', yMin: 90, yMax: 100, vbands, formatValue: (v, i) => `${v.toFixed(1)}${samples[i] && samples[i].spo2Ok === false ? ' (moving)' : ''}`, markers: lowIdx >= 0 ? [{ index: lowIdx, label: `Lowest ${spo2[lowIdx].toFixed(1)} %`, color: 'green', textColor: 'text', upper: false, below: true }] : [] });
+      const temps = samples.map((s) => parseFloat(BL.fmt.temp(s.temp))), tPeak = temps.indexOf(Math.max.apply(null, temps));
+      mk('sumTemp', { data: temps, color: 'amber', fill: false, width: 2 }, { unit: BL.fmt.tempUnit(), formatY: (v) => v.toFixed(1), formatValue: (v) => v.toFixed(2), vbands, markers: tPeak >= 0 ? [{ index: tPeak, label: `Peak ${temps[tPeak].toFixed(1)} ${BL.fmt.tempUnit()} at ${BL.fmtClock(samples[tPeak].t)}`, color: 'amber', textColor: 'text', upper: false, align: tPeak > temps.length * 0.6 ? 'right' : 'left' }] : [] });
       mk('sumFatigue', { data: samples.map((s) => s.fatigue), color: 'purple' }, { unit: '/100', yMin: 0, yMax: 100 });
-      UI().renderZones($('[data-zones="summary"]', this.screen), a.zones || [0, 0, 0, 0, 0]);
+      UI().renderZoneTime($('[data-zone-time="summary"]', this.screen), zones, a.zones || [0, 0, 0, 0, 0], a.belowMin || 0);
+      this.renderRecovery(true);
       const path = a.path && a.path.length > 1 ? a.path : A().activity.route.slice(0, Math.round(A().activity.route.length * Math.min(1, a.distanceKm / 10.1)));
       if (this.map) BL.MapController.destroy('summary');
       $('#map-summary').innerHTML = '<div class="map-skeleton"><span></span>Loading route…</div>';
       this.map = BL.MapController.create('summary', $('#map-summary'), { static: false, fitPadding: [30, 30] });
       if (this.map && path.length > 1) { this.map.setRoute(path, { fit: true }); this.map.setProgress(path, null); this.map.follow = false; setTimeout(() => { this.map.invalidate(); this.map.fitRoute(path); }, 120); }
       UI().countScreen(this.screen);
+    },
+    /* post-session heart-rate recovery: live capture or stored curve */
+    renderRecovery(animate) {
+      const a = this.current; if (!a) return;
+      const set = (k, v) => $$(`[data-sum-field="${k}"]`, this.screen).forEach((n) => { n.textContent = v; });
+      const curve = a.recovery && a.recovery.length > 1 ? a.recovery : BL.ActivityTracker.syntheticRecovery(a);
+      const capturing = A().activity.capturing && A().activity.capture.summary.id === a.id;
+      const r = BL.metrics.hrRecovery(curve);
+      const labels = curve.map((p) => `${p.t} s`);
+      const i60 = curve.findIndex((p) => p.t >= 60), i120 = curve.findIndex((p) => p.t >= 120);
+      const markers = [{ index: 0, label: `${curve[0].hr} bpm at stop`, color: 'orange', textColor: 'text', upper: false, align: 'left', below: false }];
+      if (i60 >= 0) markers.push({ index: i60, label: `−${r.hrr60} bpm in 60 s`, color: 'orange', textColor: 'text', upper: false, align: 'left', below: true });
+      if (i120 >= 0) markers.push({ index: i120, label: `−${r.hrr120} bpm in 120 s`, color: 'orange', textColor: 'text', upper: false, align: 'left', below: true });
+      const cfg = { type: 'line', series: [{ data: curve.map((p) => p.hr), color: 'orange', fillAlpha: 0.18 }], labels, labelEvery: Math.max(1, Math.round(curve.length / 6)), tooltipLabels: labels, unit: 'bpm', yMin: 50, markers };
+      if (CM().get('sumHrr')) CM().update('sumHrr', cfg, animate); else CM().create('sumHrr', $('[data-chart="sumHrr"]', this.screen), cfg);
+      set('hrr60', r.hrr60 != null ? r.hrr60 : '—'); set('hrr120', r.hrr120 != null ? r.hrr120 : '—');
+      set('hrrLabel', r.hrr60 != null ? BL.metrics.hrrLabel(r.hrr60, curve[0].hr) : 'Stand still — reading at 60 s');
+      const chip = $('[data-sum-field="hrrState"]', this.screen);
+      if (capturing) chip.innerHTML = `<span class="status-dot status-dot--rec"></span>Measuring ${BL.fmtClock(a.recoverySeconds || 0)} · stay still`;
+      else chip.innerHTML = a.recoverySynthetic ? 'Estimated from session' : `${icon('check-circle', 'ico')}Measured after stopping`;
     },
     action(a) {
       const cur = this.current; if (!cur) return;
@@ -445,7 +502,18 @@
       const cfg = { type: 'bar', data, labels: dayLabels(), colors: data.map((v) => (v >= 85 ? 'green' : v >= 70 ? 'aqua' : v >= 50 ? 'orange' : 'red')), highlightIndex: 6, yMin: 0, yMax: 100, unit: '%', formatValue: (v) => `${v}%` };
       if (CM().get('recovery7')) CM().update('recovery7', cfg, true); else CM().create('recovery7', $('[data-chart="recovery7"]'), cfg);
       const ring = UI().rings.recDetail; if (ring) { ring.set(0); setTimeout(() => ring.set(A().sim.state.recovery, A().sim.state.recovery + '%'), 60); }
+      this.renderMorning(true);
       UI().countScreen(this.screen);
+    },
+    renderMorning(animate) {
+      const rd = A().readinessData();
+      const n = rd.ln.length;
+      const labels = rd.ln.map((_, i) => (i === 0 ? 'Day 1' : i === n - 1 ? 'Today' : (i + 1) % 7 === 0 && i < n - 4 ? `Day ${i + 1}` : ''));
+      const lowIdx = rd.ln.indexOf(Math.min.apply(null, rd.ln));
+      const cfg = { type: 'line', series: [{ data: rd.avg7, color: 'blue', fill: false, width: 2 }, { data: rd.ln, color: 'muted', line: false, dots: true, dotRadius: 3.5, dotColor: 'muted' }], labels, labelEvery: 1, tooltipLabels: rd.ln.map((_, i) => `Day ${i + 1}`), unit: 'ln RMSSD', formatY: (v) => v.toFixed(1), formatValue: (v) => v.toFixed(2), band: { from: rd.range.from, to: rd.range.to, color: 'blue' }, yMin: Math.min(3.6, rd.range.from - 0.25), yMax: Math.max(4.3, rd.range.to + 0.25), markers: [{ index: lowIdx, label: `Lowest ${rd.ln[lowIdx].toFixed(2)}, two days after the hardest session`, color: 'muted', textColor: 'text', upper: false, below: true, align: lowIdx > n * 0.5 ? 'right' : 'left' }] };
+      if (CM().get('hrv28')) CM().update('hrv28', cfg, animate); else CM().create('hrv28', $('[data-chart="hrv28"]'), cfg);
+      const rcfg = { type: 'line', series: [{ data: rd.rhr, color: 'orange', fill: false, width: 2, smooth: false, endDot: true }], labels, labelEvery: 1, tooltipLabels: rd.ln.map((_, i) => `Day ${i + 1}`), unit: 'bpm', yMin: 48, yMax: 68, gridLines: 2 };
+      if (CM().get('rhr28')) CM().update('rhr28', rcfg, animate); else CM().create('rhr28', $('[data-chart="rhr28"]'), rcfg);
     },
   };
   S.heart = {
@@ -456,13 +524,29 @@
       const mk = (key, cfg) => { if (CM().get(key)) CM().update(key, cfg, true); else CM().create(key, $(`[data-chart="${key}"]`, this.screen), cfg); };
       mk('hr24', { type: 'line', series: [{ data, color: 'red', dashedFrom: hour }], labels: BL.data.HOUR_LABELS, labelEvery: 1, tooltipLabels: hourNames, unit: 'bpm', yMin: 40 });
       mk('rhr7', { type: 'line', series: [{ data: weekSeries(BL.data.WEEK.restingHr, A().sim.state.restingHr), color: 'blue', dots: true, endDot: true }], labels: dayLabels(), unit: 'bpm', yMin: 50, yMax: 72 });
-      mk('hrv7', { type: 'line', series: [{ data: weekSeries(BL.data.WEEK.hrv, A().sim.state.hrv), color: 'aqua', dots: true, endDot: true }], labels: dayLabels(), unit: 'ms', yMin: 30, yMax: 70 });
+      mk('hrv7', { type: 'line', series: [{ data: weekSeries(BL.data.WEEK.hrv, A().restingSnapshot().hrv), color: 'aqua', dots: true, endDot: true }], labels: dayLabels(), unit: 'ms', yMin: 30, yMax: 70 });
       const last = A().activity.getHistory()[0];
       if (last) { const samples = last.samples && last.samples.length > 3 ? last.samples : BL.ActivityTracker.syntheticSamples(last); const labels = samples.map((s) => BL.fmtClock(s.t)); mk('lastActHr', { type: 'line', series: [{ data: samples.map((s) => s.hr), color: 'orange' }], labels, labelEvery: Math.ceil(samples.length / 5), unit: 'bpm' }); $('[data-bind="lastActivityName"]').textContent = last.name; }
-      UI().renderZones($('[data-zones="today"]'), BL.data.ZONE_MINUTES_TODAY);
+      UI().renderZones($('[data-zones="today"]'), BL.data.ZONE_MINUTES_TODAY, A().activity.zones());
+      this.renderRecovery(true);
       S.ecg.renderHistory();
       S.home.drawSparks();
       UI().countScreen(this.screen);
+    },
+    renderRecovery(animate) {
+      const a = A().activity.latestWithRecovery(); if (!a) return;
+      const curve = a.recovery && a.recovery.length > 1 ? a.recovery : BL.ActivityTracker.syntheticRecovery(a);
+      const r = BL.metrics.hrRecovery(curve);
+      const labels = curve.map((p) => `${p.t} s`);
+      const i60 = curve.findIndex((p) => p.t >= 60), i120 = curve.findIndex((p) => p.t >= 120);
+      const markers = [{ index: 0, label: `${curve[0].hr} bpm at stop`, color: 'orange', textColor: 'text', upper: false, align: 'left' }];
+      if (i60 >= 0) markers.push({ index: i60, label: `−${r.hrr60} bpm in 60 s`, color: 'orange', textColor: 'text', upper: false, align: 'left', below: true });
+      if (i120 >= 0) markers.push({ index: i120, label: `−${r.hrr120} bpm in 120 s`, color: 'orange', textColor: 'text', upper: false, align: 'left', below: true });
+      const cfg = { type: 'line', series: [{ data: curve.map((p) => p.hr), color: 'orange', fillAlpha: 0.18 }], labels, labelEvery: Math.max(1, Math.round(curve.length / 6)), tooltipLabels: labels, unit: 'bpm', yMin: 50, markers };
+      if (CM().get('hrrCurve')) CM().update('hrrCurve', cfg, animate); else CM().create('hrrCurve', $('[data-chart="hrrCurve"]'), cfg);
+      const weeks = BL.data.HRR60_WEEKS.concat([r.hrr60 != null ? r.hrr60 : BL.data.HRR60_WEEKS[6]]);
+      const wcfg = { type: 'bar', data: weeks, labels: weeks.map((v, i) => (i === 0 ? `W1 · ${v}` : i === 7 ? `W8 · ${v}` : '')), color: 'orange', highlightIndex: 7, yAxis: false, yMin: 0, yMax: 50, unit: 'bpm', formatValue: (v) => `${v} bpm` };
+      if (CM().get('hrrWeeks')) CM().update('hrrWeeks', wcfg, animate); else CM().create('hrrWeeks', $('[data-chart="hrrWeeks"]'), wcfg);
     },
   };
   S.temperature = {
@@ -525,7 +609,7 @@
           ['Distance', 'bar', prof.map((w, i) => (i <= hour ? round(parseFloat(f.distance(w * s.distanceKm, 2)), 2) : null)), 'aqua', f.distUnit(), f.distance(s.distanceKm, 1), 'today'],
           ['Calories', 'bar', kcalH, 'orange', 'kcal', `${s.calories}`, 'today'],
           ['Temperature', 'line', temp(tp), 'orange', f.tempUnit(), f.temp(s.temp), 'now', { band: { from: parseFloat(f.temp(36.4, 2)), to: parseFloat(f.temp(36.8, 2)) }, formatY: (v) => v.toFixed(1) }],
-          ['Training Load', 'line', BL.data.HOUR_LABELS.map((_, i) => (i <= hour ? s.trainingLoad - (hour - i) * 0.2 : null)), 'purple', '', `${s.trainingLoad}`, '7-day'],
+          ['Session Load', 'bar', A().activity.dailyLoads().slice(-7), 'purple', 'TRIMP', `${A().activity.loadStats().acwr.load7}`, 'last 7 days', { labels: dayLabels(), tooltipLabels: null, labelEvery: 1, highlightIndex: 6, formatValue: (v) => (v ? `${Math.round(v)} TRIMP` : 'Rest day') }],
           ['HRV', 'line', hrv, 'aqua', 'ms', `${s.hrv}`, 'now'],
           ['Sleep', 'bar', [26, 102, 258, 108], 'purple', '', '7h 48m', 'last night', { labels: ['Awake', 'REM', 'Light', 'Deep'], colors: ['orange', 'aqua', 'blue', 'purple'] }],
         ] };
@@ -533,7 +617,7 @@
       const W = BL.data.WEEK, M = BL.data.MONTH, Y = BL.data.YEAR;
       const labels = p === 'week' ? dayLabels() : p === 'month' ? Array.from({ length: 30 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - 29 + i); return `${d.getDate()}`; }) : Array.from({ length: 12 }, (_, i) => { const d = new Date(); d.setMonth(d.getMonth() - 11 + i); return BL.MONTHS_SHORT[d.getMonth()]; });
       const src = p === 'week' ? {
-        hr: weekSeries([74, 72, 76, 71, 73, 70], s.hr), recovery: weekSeries(W.recovery, s.recovery), fatigue: weekSeries(W.fatigue, s.fatigue), bb: weekSeries(W.bodyBattery, s.bodyBattery), steps: weekSeries(W.steps, s.steps), distance: weekSeries(W.distance, round(s.distanceKm, 1)), calories: weekSeries(W.calories, s.calories), temp: weekSeries(W.temp, round(s.temp, 1)), load: weekSeries(W.trainingLoad, s.trainingLoad), hrv: weekSeries(W.hrv, s.hrv), sleep: weekSeries(W.sleepHours, BL.data.SLEEP_TODAY_HOURS),
+        hr: weekSeries([74, 72, 76, 71, 73, 70], s.hr), recovery: weekSeries(W.recovery, s.recovery), fatigue: weekSeries(W.fatigue, s.fatigue), bb: weekSeries(W.bodyBattery, s.bodyBattery), steps: weekSeries(W.steps, s.steps), distance: weekSeries(W.distance, round(s.distanceKm, 1)), calories: weekSeries(W.calories, s.calories), temp: weekSeries(W.temp, round(s.temp, 1)), load: A().activity.dailyLoads().slice(-7), hrv: weekSeries(W.hrv, A().restingSnapshot().hrv), sleep: weekSeries(W.sleepHours, BL.data.SLEEP_TODAY_HOURS),
       } : p === 'month' ? { hr: M.heartRate, recovery: M.recovery, fatigue: M.fatigue, bb: M.bodyBattery, steps: M.steps, distance: M.distance, calories: M.calories, temp: M.temp, load: M.trainingLoad, hrv: M.hrv, sleep: M.sleepHours }
         : { hr: Y.heartRate, recovery: Y.recovery, fatigue: Y.fatigue, bb: Y.bodyBattery, steps: Y.steps, distance: Y.distance, calories: Y.calories, temp: Y.temp, load: Y.trainingLoad, hrv: Y.hrv, sleep: Y.sleepHours };
       const sumLabel = p === 'week' ? 'this week' : p === 'month' ? '30 days' : '12 months';
@@ -547,7 +631,7 @@
         ['Distance', 'bar', dist(src.distance), 'aqua', f.distUnit(), f.distance(BL.sum(src.distance), 1), sumLabel],
         ['Calories', 'bar', src.calories, 'orange', 'kcal', BL.fmtNumber(BL.sum(src.calories)), sumLabel],
         ['Temperature', 'line', temp(src.temp), 'orange', f.tempUnit(), f.temp(BL.avg(src.temp)), 'avg', { band: { from: parseFloat(f.temp(36.4, 2)), to: parseFloat(f.temp(36.8, 2)) }, formatY: (v) => v.toFixed(1) }],
-        ['Training Load', 'bar', src.load, 'purple', '', `${avgOf(src.load)}`, 'avg'],
+        ['Session Load', 'bar', src.load, 'purple', 'TRIMP', `${Math.round(BL.sum(src.load))}`, p === 'week' ? 'last 7 days' : 'avg / ' + (p === 'month' ? 'day' : 'week'), { formatValue: (v) => (v ? `${Math.round(v)} TRIMP` : 'Rest day') }],
         ['HRV', 'line', src.hrv, 'aqua', 'ms', `${avgOf(src.hrv)}`, 'avg'],
         ['Sleep', 'bar', src.sleep, 'purple', 'h', `${(BL.avg(src.sleep)).toFixed(1)}`, 'avg / night', { formatValue: (v) => `${Math.floor(v)}h ${Math.round((v % 1) * 60)}m` }],
       ] };
@@ -565,15 +649,55 @@
         const cfg = Object.assign({ labels: ex.labels || ds.labels, tooltipLabels: ex.labels ? null : ds.tooltipLabels, labelEvery: ex.labels ? 1 : ds.labelEvery, unit, yAxis: type !== 'bar' }, type === 'bar' ? { type: 'bar', data, color, colors: ex.colors, highlightIndex: this.period === 'week' ? 6 : undefined } : { type: 'line', series: [{ data, color, dashedFrom: ds.dashed, endDot: this.period !== 'day' }] }, ex);
         if (CM().get('an-' + i)) CM().update('an-' + i, cfg, animate); else CM().create('an-' + i, $(`[data-chart="an-${i}"]`), cfg);
       });
-      const loadCfg = { type: 'bar', data: weekSeries(BL.data.WEEK.trainingLoad, A().sim.state.trainingLoad), labels: dayLabels(), color: 'aqua', highlightIndex: 6, yAxis: false, xLabels: false, yMin: 0, yMax: 100 };
-      if (CM().get('load7')) CM().update('load7', loadCfg, animate); else CM().create('load7', $('[data-chart="load7"]'), loadCfg);
+      const ls = A().activity.loadStats();
+      const tooltip = ls.daily.map((_, i) => (i === 27 ? 'Today' : i === 26 ? 'Yesterday' : `Day ${i + 1}`));
+      const loadCfg = { type: 'bar', data: ls.daily, labels: ls.labels, tooltipLabels: tooltip, color: 'orange', unit: 'TRIMP', yMin: 0, labelMax: true, overlay: { data: ls.avg7, color: 'text', width: 2 }, formatValue: (v) => (v ? Math.round(v) : 'Rest day') };
+      if (CM().get('load28')) CM().update('load28', loadCfg, animate); else CM().create('load28', $('[data-chart="load28"]'), loadCfg);
+      const ser = ls.series, peak = ser.indexOf(Math.max.apply(null, ser));
+      const acfg = { type: 'line', series: [{ data: ser, color: 'orange', fill: false, width: 2, smooth: false, endDot: true }], labels: ls.labels, tooltipLabels: tooltip, unit: 'ratio', yMin: 0.4, yMax: 1.7, yTicks: [0.5, 0.8, 1.3, 1.5], formatY: (v) => v.toFixed(1), formatValue: (v) => v.toFixed(2), band: { from: 0.8, to: 1.3, color: 'text' }, hlines: [{ y: 1.5, label: 'Spike 1.5', color: 'red', alpha: 0.6 }], markers: [{ index: peak, label: `Peak ${ser[peak].toFixed(2)}`, color: 'orange', textColor: 'text', upper: false, below: true }, { index: ser.length - 1, label: `${ser[ser.length - 1].toFixed(2)} today`, color: 'orange', textColor: 'text', upper: false, align: 'right', below: ser[ser.length - 1] > 1 }] };
+      if (CM().get('acwr28')) CM().update('acwr28', acfg, animate); else CM().create('acwr28', $('[data-chart="acwr28"]'), acfg);
     },
   };
 
   /* =====================================================================
      INSIGHTS / NOTIFICATIONS
      ===================================================================== */
-  S.insights = { init() { UI().renderInsights($('[data-insights]'), BL.data.INSIGHTS); on($('[data-insights]'), 'keydown', '[role="button"]', (e, t) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); A().nav.go(t.dataset.go); } }); } };
+  S.insights = {
+    init() { this.render(); on($('[data-insights]'), 'keydown', '[role="button"]', (e, t) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); A().nav.go(t.dataset.go); } }); },
+    enter() { this.render(); },
+    render() { const computed = BL.metrics.insights(A().metricsContext()); UI().renderInsights($('[data-insights]'), computed.concat(BL.data.INSIGHTS)); UI().renderInsights($('[data-insights-mini]'), computed.slice(0, 2).concat(BL.data.INSIGHTS.slice(0, 1)), true); },
+  };
+
+  /* =====================================================================
+     REFERENCE SCREENS — signal map & calculations with live worked examples
+     ===================================================================== */
+  S.signals = {
+    init() { UI().renderSignalMap($('[data-signal-map]'), BL.data.SIGNAL_MAP); UI().renderCombined($('[data-signal-combined]'), BL.data.SIGNAL_COMBINED); },
+  };
+  S.formulas = {
+    init() { this.screen = $('[data-screen="formulas"]'); this.render(); BL.settings.on('profile', () => this.render()); },
+    enter() { this.render(); },
+    render() {
+      const M = BL.metrics, p = BL.settings.profile(), a = A().activity.athlete(), s = A().sim.state, ctx = A().metricsContext();
+      const z = M.zones(a.rest, a.max), last = A().activity.getHistory()[0], rd = ctx.readinessData;
+      const kg = p.weightKg || 72, sexW = a.sex === 'female';
+      const items = [
+        { title: 'Max heart rate', sensors: ['orange'], code: 'HRmax = 208 − 0.7 × age', note: 'Tanaka 2001. An all-out field test is more accurate than any age formula; set your own value in the profile.', example: { label: `208 − 0.7 × ${a.age}`, value: `${M.hrMax(a.age)} bpm${p.maxHr && p.maxHr !== M.hrMax(a.age) ? ` · profile ${p.maxHr}` : ''}` } },
+        { title: 'Training zones (Karvonen)', sensors: ['orange'], code: 'Target = HRrest + % × (HRmax − HRrest)', note: 'Z1 50–60 %, Z2 60–70 %, Z3 70–80 %, Z4 80–90 %, Z5 90–100 % of heart-rate reserve.', example: { label: `rest ${a.rest} · max ${a.max} → Z2`, value: `${z[1].min}–${z[1].max} bpm` } },
+        { title: 'Heart-rate recovery', sensors: ['orange'], code: 'HRR60 = HRpeak − HR 60 s after stopping', note: 'A bigger drop means fitter and fresher. 12 bpm or less is a warning sign. Repeat after the same effort each time.', example: { label: ctx.hrr && ctx.hrr.source ? ctx.hrr.source : 'last session', value: ctx.hrr && ctx.hrr.hrr60 != null ? `−${ctx.hrr.hrr60} bpm in 60 s` : '—' } },
+        { title: 'Heart-rate variability', sensors: ['blue'], code: 'RMSSD = √ mean( (RR next − RR)² )\nSDNN  = SD of all RR intervals\npNN50 = % of RR changes over 50 ms', note: 'From the ECG RR intervals. Measure for 1–5 minutes on waking and track ln(RMSSD) against your own 7-day average.', example: { label: ctx.hrv ? `live · ${ctx.hrv.n} beats` : 'today', value: ctx.hrv ? `RMSSD ${Math.round(ctx.hrv.rmssd)} ms · SDNN ${Math.round(ctx.hrv.sdnn)} ms · pNN50 ${ctx.hrv.pnn50} %` : `RMSSD ${s.hrv} ms` } },
+        { title: 'Readiness check', sensors: ['blue', 'orange', 'amber'], code: 'z = (today − 28-day mean) ÷ 28-day SD', note: 'Ease off when HRV z is −1 or lower, resting-HR z is +1 or higher, or skin temperature sits 0.5 °C above baseline.', example: { label: `HRV z ${rd.readiness.hrvZ >= 0 ? '+' : ''}${rd.readiness.hrvZ.toFixed(2)} · RHR z ${rd.readiness.rhrZ >= 0 ? '+' : ''}${rd.readiness.rhrZ.toFixed(2)}`, value: rd.readiness.label } },
+        { title: 'Session load (TRIMP)', sensors: ['orange'], code: `TRIMP = minutes × x × ${sexW ? '0.86' : '0.64'} × e^(${sexW ? '1.67' : '1.92'} x)\nx = (HRavg − HRrest) ÷ (HRmax − HRrest)`, note: 'Banister 1991. Men 0.64 × e^(1.92x), women 0.86 × e^(1.67x).', example: last ? { label: `${last.name}: ${Math.round(last.durationSec / 60)} min at ${last.avgHr} bpm`, value: `${Math.round(last.trimp)} TRIMP` } : null },
+        { title: 'Load balance (ACWR)', sensors: ['orange'], code: 'ACWR = 7-day avg load ÷ 28-day avg load', note: '0.8–1.3 is a steady build. Above 1.5 is a spike, linked to higher injury risk (Gabbett 2016).', example: { label: `${ctx.acwr.load7} ÷ 7 over ${ctx.acwr.avgWeek28} ÷ 7`, value: `${ctx.acwr.ratio.toFixed(2)} · ${M.acwrLabel(ctx.acwr.ratio)}` } },
+        { title: 'Heart-rate drift', sensors: ['orange'], code: 'Drift % = (HR 2nd half − HR 1st half)\n        ÷ HR 1st half × 100', note: 'Hold one steady pace. Under 5 % means your aerobic base holds for that duration.', example: ctx.drift != null ? { label: `${ctx.driftSource} (warm-up skipped)`, value: `${ctx.drift >= 0 ? '+' : ''}${ctx.drift.toFixed(1)} %` } : { label: 'Needs one steady-pace session', value: '—' } },
+        { title: 'VO₂max estimate', sensors: ['orange'], code: 'VO2max ≈ 15.3 × HRmax ÷ HRrest', note: 'Uth 2004. A rough guide, so watch the trend more than the number.', example: { label: `15.3 × ${a.max} ÷ ${a.rest}`, value: `${M.vo2max(a.rest, a.max)} ml/kg/min` } },
+        { title: 'Energy burned', sensors: ['orange'], code: 'kcal/min = (a + b × HR + c × kg + d × age)\n          ÷ 4.184', note: 'Keytel 2005. Men: a −55.10, b 0.631, c 0.199, d 0.202. Women: a −20.40, b 0.447, c −0.126, d 0.074.', example: { label: `HR 140 · ${kg} kg · age ${a.age} · ${sexW ? 'women' : 'men'}`, value: `${M.kcalPerMin(140, kg, a.age, a.sex).toFixed(1)} kcal/min` } },
+        { title: 'SpO₂ from light', sensors: ['green'], code: 'R = (ACred ÷ DCred) ÷ (ACir ÷ DCir)\nSpO2 ≈ 110 − 25 × R', note: 'The straight-line fit is a starting point. Calibrate against a reference oximeter and read only when still.', example: { label: `R = ${M.rFromSpo2(s.spo2).toFixed(3)} (live)`, value: `${s.spo2} %` } },
+        { title: 'Heat strain (PSI)', sensors: ['orange', 'amber'], code: 'PSI = 5 × (T − T0) ÷ (39.5 − T0)\n    + 5 × (HR − HR0) ÷ (180 − HR0)', note: 'Moran 1998, scale 0–10. T0 and HR0 are resting values. A skin sensor reads lower than core, so use it as a trend.', example: { label: `T ${s.temp.toFixed(1)} · T0 ${s.tempBaseline} · HR ${s.hr} · HR0 ${a.rest}`, value: `${(s.psi || 0).toFixed(1)} / 10 · ${M.psiLabel(s.psi || 0)}` } },
+      ];
+      UI().renderFormulas($('[data-formulas]'), items);
+    },
+  };
   S.notifications = {
     init() {
       this.root = $('[data-notif-root]'); this.screen = $('[data-screen="notifications"]');
@@ -651,8 +775,9 @@
     enter() { this.render(); UI().countScreen(this.screen); },
     render() {
       const p = BL.settings.profile(), s = BL.settings, f = BL.fmt, row = UI().profileRow;
-      $('[data-profile-list="body"]').innerHTML = row('age', 'Age', `${p.age} yrs`, 'user') + row('height', 'Height', f.height(p.heightCm), 'ruler') + row('weight', 'Weight', f.weight(p.weightKg), 'scale');
-      $('[data-profile-list="goals"]').innerHTML = row('stepGoal', 'Daily step goal', BL.fmtNumber(p.stepGoal), 'steps') + row('fitnessGoal', 'Fitness goal', p.fitnessGoal, 'target') + row('maxHr', 'Max heart rate', `${p.maxHr} BPM`, 'heart');
+      const tanaka = BL.metrics.hrMax(p.age);
+      $('[data-profile-list="body"]').innerHTML = row('age', 'Age', `${p.age} yrs`, 'user') + row('sex', 'Sex (for formulas)', p.sex === 'female' ? 'Female' : 'Male', 'user') + row('height', 'Height', f.height(p.heightCm), 'ruler') + row('weight', 'Weight', f.weight(p.weightKg), 'scale');
+      $('[data-profile-list="goals"]').innerHTML = row('stepGoal', 'Daily step goal', BL.fmtNumber(p.stepGoal), 'steps') + row('fitnessGoal', 'Fitness goal', p.fitnessGoal, 'target') + row('maxHr', 'Max heart rate', `${p.maxHr} BPM${p.maxHr === tanaka ? ' · Tanaka' : ' · custom'}`, 'heart') + row('vo2', 'VO₂max estimate', `${BL.metrics.vo2max(A().sim.state.restingHr, p.maxHr)} ml/kg/min`, 'trend-up');
       $('[data-profile-list="units"]').innerHTML = row('unitSystem', 'Preferred units', s.get('unitSystem') === 'imperial' ? 'Imperial' : 'Metric', 'sliders') + row('distanceUnit', 'Distance units', s.get('distanceUnit') === 'mi' ? 'Miles' : 'Kilometres', 'route') + row('tempUnit', 'Temperature units', s.get('tempUnit') === 'F' ? 'Fahrenheit (°F)' : 'Celsius (°C)', 'thermometer');
     },
     async edit(key) {
@@ -661,11 +786,13 @@
       let v;
       switch (key) {
         case 'name': v = await UI().prompt('Edit name', { label: 'Display name', value: p.name }); if (v && v.trim()) { s.setProfile({ name: v.trim() }); BL.toast('Profile updated', 'success'); } break;
-        case 'age': v = await num('Age', 'Years', p.age, 10, 100, 1); if (v != null) { s.setProfile({ age: Math.round(v), maxHr: Math.round(220 - v) }); BL.toast('Age updated — max HR recalculated', 'success'); } break;
+        case 'age': v = await num('Age', 'Years', p.age, 10, 100, 1); if (v != null) { s.setProfile({ age: Math.round(v), maxHr: BL.metrics.hrMax(Math.round(v)) }); BL.toast('Age updated — HRmax recalculated (208 − 0.7 × age)', 'success'); } break;
+        case 'sex': v = await UI().form('Sex', [{ key: 'sx', label: 'Used for TRIMP and energy coefficients', type: 'segment', value: p.sex || 'male', options: [['male', 'Male'], ['female', 'Female']] }]); if (v) { s.setProfile({ sex: v.sx }); BL.toast('Profile updated — load and energy formulas recalculated', 'success'); } break;
+        case 'vo2': UI().modal({ title: 'VO₂max estimate', body: `<p>VO₂max ≈ 15.3 × HRmax ÷ HRrest (Uth 2004).</p><p>With HRmax ${p.maxHr} and resting HR ${A().sim.state.restingHr}: <b>${BL.metrics.vo2max(A().sim.state.restingHr, p.maxHr)} ml/kg/min</b>.</p><p class="text-muted small">A rough guide — watch the trend more than the number.</p>`, actions: [{ label: 'Close', cls: 'btn--primary' }] }); break;
         case 'height': v = await num('Height', 'Centimetres', p.heightCm, 100, 230, 1); if (v != null) s.setProfile({ heightCm: Math.round(v) }); break;
         case 'weight': v = await num('Weight', 'Kilograms', p.weightKg, 30, 250, 0.1); if (v != null) s.setProfile({ weightKg: round(v, 1) }); break;
         case 'stepGoal': v = await num('Daily step goal', 'Steps', p.stepGoal, 1000, 50000, 500); if (v != null) { s.setProfile({ stepGoal: Math.round(v) }); BL.toast('Step goal updated', 'success'); } break;
-        case 'maxHr': v = await num('Max heart rate', 'BPM', p.maxHr, 120, 220, 1, 'Default estimate is 220 − age'); if (v != null) s.setProfile({ maxHr: Math.round(v) }); break;
+        case 'maxHr': v = await num('Max heart rate', 'BPM', p.maxHr, 120, 220, 1, `Tanaka estimate for your age: ${BL.metrics.hrMax(p.age)} bpm. An all-out field test is more accurate.`); if (v != null) s.setProfile({ maxHr: Math.round(v) }); break;
         case 'fitnessGoal': v = await UI().form('Fitness goal', [{ key: 'goal', label: 'Goal', type: 'select', value: p.fitnessGoal, options: [['Improve endurance', 'Improve endurance'], ['Build strength', 'Build strength'], ['Lose weight', 'Lose weight'], ['Improve recovery', 'Improve recovery'], ['Maintain health', 'Maintain health'], ['Race preparation', 'Race preparation']] }]); if (v) s.setProfile({ fitnessGoal: v.goal }); break;
         case 'unitSystem': v = await UI().form('Preferred units', [{ key: 'u', label: 'System', type: 'segment', value: s.get('unitSystem'), options: [['metric', 'Metric'], ['imperial', 'Imperial']] }]); if (v) { s.set('unitSystem', v.u); s.set('distanceUnit', v.u === 'imperial' ? 'mi' : 'km'); s.set('tempUnit', v.u === 'imperial' ? 'F' : 'C'); BL.toast('Units updated', 'success'); } break;
         case 'distanceUnit': v = await UI().form('Distance units', [{ key: 'u', label: 'Unit', type: 'segment', value: s.get('distanceUnit'), options: [['km', 'Kilometres'], ['mi', 'Miles']] }]); if (v) s.set('distanceUnit', v.u); break;

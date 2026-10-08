@@ -36,7 +36,8 @@
       $$('[data-bind-class]').forEach((node) => {
         const key = node.dataset.bindClass; if (!(key in vm)) return;
         const spec = vm[key]; if (prev[key] === spec) return;
-        if (node.classList.contains('status-dot')) node.className = 'status-dot ' + spec;
+        if (node.dataset.classBase) node.className = node.dataset.classBase + ' ' + spec;
+        else if (node.classList.contains('status-dot')) node.className = 'status-dot ' + spec;
         else if (node.classList.contains('badge')) node.className = 'badge ' + spec;
         else if (node.classList.contains('battery__shell')) node.className = 'battery__shell ' + spec;
       });
@@ -213,7 +214,7 @@
 
     renderEcgHistory(container, sessions) {
       if (!sessions.length) { container.innerHTML = `<div class="empty">${icon('ecg')}<b>No ECG sessions yet.</b><p>Record a session to build your ECG history.</p><button class="btn btn--primary btn--sm" data-ecg-action="start" data-go="ecg">${icon('play')}Start ECG Recording</button></div>`; return; }
-      container.innerHTML = sessions.map((s) => `<article class="ecg-session" data-session="${s.id}"><div class="ecg-session__head"><b>${escapeHtml(s.name || 'ECG session')}</b><span>${BL.fmtDateTime(s.date)}</span></div><div class="ecg-session__meta"><div><span>Duration</span><b>${BL.fmtDurationHuman(s.durationSec)}</b></div><div><span>Average HR</span><b>${s.avgHr} BPM</b></div><div><span>Signal</span><b>${escapeHtml(s.quality)}</b></div></div><div class="ecg-session__strip"><canvas data-strip="${s.avgHr}" data-seed="${s.id.length}"></canvas></div><div class="ecg-session__actions"><button class="btn btn--sm btn--secondary" data-ecg-session="view">${icon('eye')}View</button><button class="btn btn--sm btn--secondary" data-ecg-session="rename">${icon('edit')}Rename</button><button class="btn btn--sm btn--secondary" data-ecg-session="export">${icon('download')}CSV</button><button class="btn btn--sm btn--danger-ghost" data-ecg-session="delete">${icon('trash')}Delete</button></div></article>`).join('');
+      container.innerHTML = sessions.map((s) => `<article class="ecg-session" data-session="${s.id}"><div class="ecg-session__head"><b>${escapeHtml(s.name || 'ECG session')}</b><span>${BL.fmtDateTime(s.date)}</span></div><div class="ecg-session__meta"><div><span>Duration</span><b>${BL.fmtDurationHuman(s.durationSec)}</b></div><div><span>Average HR</span><b>${s.avgHr} BPM</b></div>${s.hrv ? `<div><span>RMSSD</span><b>${Math.round(s.hrv.rmssd)} ms</b></div>` : ''}<div><span>Signal</span><b>${escapeHtml(s.quality)}</b></div></div><div class="ecg-session__strip"><canvas data-strip="${s.avgHr}" data-seed="${s.id.length}"></canvas></div><div class="ecg-session__actions"><button class="btn btn--sm btn--secondary" data-ecg-session="view">${icon('eye')}View</button><button class="btn btn--sm btn--secondary" data-ecg-session="rename">${icon('edit')}Rename</button><button class="btn btn--sm btn--secondary" data-ecg-session="export">${icon('download')}CSV</button><button class="btn btn--sm btn--danger-ghost" data-ecg-session="delete">${icon('trash')}Delete</button></div></article>`).join('');
       $$('canvas[data-strip]', container).forEach((c) => BL.ECGRenderer.drawStatic(c, { hr: parseInt(c.dataset.strip, 10), seed: parseInt(c.dataset.seed, 10) }));
     },
 
@@ -240,10 +241,30 @@
       container.style.height = '150px';
     },
 
-    renderZones(container, minutes) {
+    renderZones(container, minutes, zones) {
+      zones = zones || BL.data.HR_ZONES;
       const total = minutes.reduce((a, b) => a + b, 0) || 1;
-      container.innerHTML = `<div class="zones__bar">${BL.data.HR_ZONES.map((z, i) => `<span class="${z.cls}" data-w="${(minutes[i] / total) * 100}" style="width:0%"></span>`).join('')}</div><div class="zones__list">${BL.data.HR_ZONES.map((z, i) => `<div class="zones__item"><i class="${z.cls}"></i><span class="z-name"><b>Zone ${z.zone}</b><span>${z.name}</span></span><span class="z-range">${z.min}–${z.zone === 5 ? '' : z.max}${z.zone === 5 ? '+' : ''} BPM</span><span class="z-time">${BL.fmtMinutes(minutes[i])}</span></div>`).join('')}</div>`;
+      container.innerHTML = `<div class="zones__bar">${zones.map((z, i) => `<span class="${z.cls}" data-w="${(minutes[i] / total) * 100}" style="width:0%"></span>`).join('')}</div><div class="zones__list">${zones.map((z, i) => `<div class="zones__item"><i class="${z.cls}"></i><span class="z-name"><b>Zone ${z.zone}</b><span>${z.name}${z.pct ? ' · ' + z.pct : ''}</span></span><span class="z-range">${z.min}–${z.max} BPM</span><span class="z-time">${BL.fmtMinutes(minutes[i])}</span></div>`).join('')}</div>`;
       requestAnimationFrame(() => requestAnimationFrame(() => $$('.zones__bar span', container).forEach((s) => { s.style.width = s.dataset.w + '%'; })));
+    },
+
+    /* Time in zone — horizontal bars, Z5 at the top, plus the time below zone 1 */
+    renderZoneTime(container, zones, minutes, belowMin) {
+      const rows = zones.map((z, i) => ({ label: `Z${z.zone}`, cls: z.cls, min: minutes[i] || 0 })).reverse();
+      rows.push({ label: 'Below', cls: 'zbelow', min: belowMin || 0 });
+      const maxMin = Math.max(1, Math.max.apply(null, rows.map((r) => r.min)));
+      container.innerHTML = `<div class="zonetime__title">Time in zone · min</div>` + rows.map((r) => `<div class="zonetime__row"><span>${r.label}</span><div class="zonetime__bar"><i class="${r.cls}" data-w="${(r.min / maxMin) * 100}"></i></div><b>${r.min.toFixed(1)}</b></div>`).join('');
+      requestAnimationFrame(() => requestAnimationFrame(() => $$('.zonetime__bar i', container).forEach((b) => { b.style.width = b.dataset.w + '%'; })));
+    },
+
+    renderSignalMap(container, map) {
+      container.innerHTML = map.map((sMap) => `<article class="signal" style="border-top-color:var(--accent-${sMap.color === 'aqua' ? 'primary' : sMap.color})"><div class="signal__head"><i class="c-bg-${sMap.color}"></i><h3>${escapeHtml(sMap.name)}</h3></div><p class="signal__desc">${escapeHtml(sMap.desc)}</p><div class="signal__label">Raw signal</div><p class="signal__raw">${escapeHtml(sMap.raw)}</p><div class="signal__label">Parameters you can collect</div><ul class="signal__list">${sMap.params.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul><div class="signal__label">Training metrics you can derive</div><ul class="signal__list c-${sMap.color}">${sMap.derived.map((x) => `<li><span style="color:var(--text-primary)">${escapeHtml(x)}</span></li>`).join('')}</ul></article>`).join('');
+    },
+    renderCombined(container, items) {
+      container.innerHTML = items.map((c) => `<article class="combined"><div class="combined__dots">${c.sensors.map((k) => `<i class="c-bg-${k}"></i>`).join('')}</div><b>${escapeHtml(c.title)}</b><p>${escapeHtml(c.text)}</p></article>`).join('');
+    },
+    renderFormulas(container, items) {
+      container.innerHTML = items.map((f) => `<article class="formula"><div class="formula__head"><h3>${escapeHtml(f.title)}</h3><div class="formula__dots">${f.sensors.map((k) => `<i class="c-bg-${k}"></i>`).join('')}</div></div><pre class="formula__code">${escapeHtml(f.code)}</pre><p class="formula__note">${f.note}</p>${f.example ? `<div class="formula__example"><span>${f.example.label}</span><b>${escapeHtml(f.example.value)}</b></div>` : ''}</article>`).join('');
     },
 
     settingRow(key, label, desc, value, iconName) {

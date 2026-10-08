@@ -39,6 +39,7 @@
       this.baseFatigue = v.fatigue; this.baseRecovery = v.recovery; this.baseLoad = v.trainingLoad;
       this.hrvFloat = v.hrv; this.stressFloat = v.stress; this.spo2Float = v.spo2; this.respFloat = v.resp;
       this.activity = null;
+      this.recovery = null; // post-exercise heart-rate recovery curve
       this.hrHistory = Array.from({ length: 48 }, (_, i) => Math.round(72 + Math.sin(i / 3) * 2 + (Math.random() - 0.5) * 2));
       this.tempHistory = BL.data.TEMP_24.slice();
       this.timer = null; this.last = 0; this.frozen = false;
@@ -53,15 +54,29 @@
     /** Freeze vitals while the jacket is disconnected */
     setFrozen(f) { this.frozen = !!f; }
 
-    /** Called by ActivityTracker: { type, intensity, elapsedMin } or null */
-    setActivity(ctx) { this.activity = ctx; }
+    /** Called by ActivityTracker: { type, intensity, elapsedMin, hrTarget, phase } or null */
+    setActivity(ctx) {
+      if (!ctx && this.activity) this.recovery = { start: performance.now(), hrStop: this.s.hrFloat };
+      if (ctx) this.recovery = null;
+      this.activity = ctx;
+    }
+    /** HR target while recovering after a session: fast + slow exponential return to rest */
+    recoveryTarget(t) {
+      const r = this.recovery; if (!r) return null;
+      // fast vagal reactivation (τ ≈ 55 s) + slow metabolic return (τ ≈ 1000 s): ≈ −33 bpm in 60 s and −46 bpm in 120 s from a 172 bpm stop
+      const rest = 71.5; const frac = BL.metrics.recoveryFraction(t);
+      if (t > 1800) { this.recovery = null; return null; }
+      return rest + (r.hrStop - rest) * frac;
+    }
 
     /** Strain integration — called per simulated minute slice during activity */
     addStrain(type, simMinutes) {
-      const s = this.s;
+      const s = this.s, p = BL.settings.profile();
       s.strainAcc += type.strainRate * simMinutes;
       s.bbFloat = clamp(s.bbFloat - type.drainPerMin * simMinutes, 0, 100);
-      s.calFloat += type.kcalPerMin * simMinutes;
+      /* energy: Keytel 2005 from heart rate once the pulse is clearly above rest, else the activity's typical rate */
+      const kcalMin = s.hr >= 95 ? BL.metrics.kcalPerMin(s.hr, p.weightKg || 72, p.age || 38, p.sex) : type.kcalPerMin;
+      s.calFloat += kcalMin * simMinutes;
       s.activeMinutesFloat += simMinutes;
       s.stepsFloat += type.cadence * 60 * simMinutes;
       s.bbDrained = round(BL.data.INITIAL_VITALS.bbDrained + (BL.data.INITIAL_VITALS.bodyBattery - s.bbFloat > 0 ? BL.data.INITIAL_VITALS.bodyBattery - s.bbFloat : 0));
@@ -77,16 +92,21 @@
       const t = now / 1000;
 
       /* Heart rate: smooth pursuit of a target with gentle beat-to-beat noise */
-      let target;
+      let target, gain = 0.06;
       if (act) {
         const ramp = clamp(act.elapsedMin / 6, 0, 1); // warm-up over ~6 simulated minutes
         const wave = Math.sin(t / 25) * act.type.hrVar * 0.6 + Math.sin(t / 7.3) * 1.5;
-        target = 78 + (act.type.hrBase - 78) * ramp + wave;
-        if (act.paused) target = 92 + Math.sin(t / 20) * 3;
+        target = act.hrTarget != null ? act.hrTarget + wave * 0.5 : 78 + (act.type.hrBase - 78) * ramp + wave;
+        if (act.paused) target = Math.max(88, s.hrFloat - 18) + Math.sin(t / 20) * 2;
+        gain = clamp((act.hrTarget != null ? 0.12 : 0.09) * (act.speedMul || 1), 0.09, 0.6); // faster pursuit at demo speeds so interval structure survives ×5 / ×20
+      } else if (this.recovery) {
+        const rt = this.recoveryTarget((now - this.recovery.start) / 1000);
+        target = rt != null ? rt + Math.sin(t / 9) * 0.8 : 71.5;
+        gain = 0.35;
       } else {
         target = 71.5 + Math.sin(t / 60) * 1.8 + Math.sin(t / 13) * 0.6;
       }
-      s.hrFloat += (target - s.hrFloat) * (act ? 0.09 : 0.06) * dt + gauss() * 0.55;
+      s.hrFloat += (target - s.hrFloat) * gain * dt + gauss() * 0.55;
       s.hrFloat = clamp(s.hrFloat, 44, Math.min(205, (BL.settings.profile().maxHr || 190) + 6));
       s.hr = Math.round(s.hrFloat);
       if (s.hr > s.hrMax) s.hrMax = s.hr;
@@ -99,9 +119,12 @@
       s.temp = round(s.tempFloat, 2);
       this.tempHistory[new Date().getHours()] = round(s.tempFloat, 1);
 
-      /* SpO₂ 97–99 mostly */
-      this.spo2Float += (98.1 - this.spo2Float) * 0.08 * dt + gauss() * 0.22;
-      s.spo2 = clamp(Math.round(this.spo2Float), 95, 100);
+      /* SpO₂ 97–99 at rest; dips during hard efforts (optical reading is unreliable while moving) */
+      const spo2Target = act && !act.paused ? (act.phase === 'hard' ? 94.8 : act.type.intensity > 0.7 ? 96.2 : 97.2) : 98.1;
+      this.spo2Float += (spo2Target - this.spo2Float) * 0.08 * dt + gauss() * 0.22;
+      s.spo2 = clamp(Math.round(this.spo2Float), 90, 100);
+      s.spo2Exact = round(this.spo2Float, 1);
+      s.spo2Reliable = !act || act.paused || act.phase === 'easy' || act.phase === 'cooldown';
 
       /* Respiration 13–17 at rest */
       const respTarget = act ? (act.paused ? 17 : 17 + act.type.intensity * 14) : 15 + Math.sin(t / 90) * 0.8;
@@ -109,7 +132,9 @@
       s.resp = clamp(Math.round(this.respFloat), 10, 38);
 
       /* HRV & stress drift */
-      this.hrvFloat += ((act ? 46 : 54) - this.hrvFloat) * 0.01 * dt + gauss() * 0.1;
+      /* RMSSD falls as vagal tone withdraws with rising heart rate, then recovers slowly after exercise */
+      const hrvTarget = clamp(54 - Math.max(0, s.hr - 76) * 0.5, 8, 60);
+      this.hrvFloat += (hrvTarget - this.hrvFloat) * (act || hrvTarget < this.hrvFloat ? 0.04 : 0.008) * dt + gauss() * 0.1;
       s.hrv = clamp(Math.round(this.hrvFloat), 20, 120);
       const stressTarget = act ? 24 + act.type.intensity * 22 : 23.5 + Math.sin(t / 200) * 1.5;
       this.stressFloat += (stressTarget - this.stressFloat) * 0.02 * dt + gauss() * 0.15;
@@ -135,6 +160,8 @@
       s.activeMinutes = Math.round(s.activeMinutesFloat);
       s.steps = Math.round(s.stepsFloat);
       s.tempDeviation = round(s.temp - s.tempBaseline, 2);
+      /* heat strain (Moran 1998 PSI) from temperature and heart rate rise above rest */
+      s.psi = round(BL.metrics.psi(s.temp, s.tempBaseline, s.hr, s.restingHr), 1);
     }
 
     /* ---------- Derived descriptors ---------- */

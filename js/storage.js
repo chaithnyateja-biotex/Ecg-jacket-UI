@@ -62,11 +62,12 @@
   const DEFAULT_PROFILE = {
     name: 'Dr. Leroy',
     age: 38,
+    sex: 'male',
     heightCm: 176,
     weightKg: 72,
     stepGoal: 10000,
     fitnessGoal: 'Improve endurance',
-    maxHr: 182,
+    maxHr: 181, // Tanaka 2001: 208 − 0.7 × age
     emergencyName: '',
     emergencyPhone: '',
     privacy: 'device', // device | cloud

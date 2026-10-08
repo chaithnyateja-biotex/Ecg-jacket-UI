@@ -149,6 +149,7 @@
       <div class="sidebar__divider"></div>
       <a class="sidebar__link" href="#/insights" data-nav="insights"><svg><use href="#i-sparkles"/></svg><span>Insights</span></a>
       <a class="sidebar__link" href="#/history" data-nav="history"><svg><use href="#i-list"/></svg><span>History</span></a>
+      <a class="sidebar__link" href="#/formulas" data-nav="formulas"><svg><use href="#i-sliders"/></svg><span>Calculations</span></a>
       <a class="sidebar__link" href="#/notifications" data-nav="notifications"><svg><use href="#i-bell"/></svg><span>Notifications</span><span class="sidebar__badge" data-bind="unreadCount"></span></a>
       <a class="sidebar__link" href="#/device" data-nav="device"><svg><use href="#i-shirt"/></svg><span>Jacket</span></a>
       <a class="sidebar__link" href="#/settings" data-nav="settings"><svg><use href="#i-settings"/></svg><span>Settings</span></a>
@@ -514,10 +515,11 @@
               <p class="text-muted small mt-sm">Autonomic balance looks calm today.</p>
             </section>
             <section class="card card--medium" data-go="analytics" role="button" tabindex="0" aria-label="Training load">
-              <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-target"/></svg>TRAINING LOAD</span><span class="badge badge--aqua" data-bind="trainingLoadStatus">Optimal</span></div>
-              <div class="metric metric--md"><span class="metric__value" data-bind="trainingLoad">68</span><span class="metric__unit">7-day</span></div>
-              <div class="load-scale"><span class="load-scale__seg"></span><span class="load-scale__seg load-scale__seg--opt"></span><span class="load-scale__seg"></span><span class="load-scale__seg"></span><i class="load-scale__marker" data-bind-left="trainingLoad"></i></div>
-              <div class="load-scale__labels"><span>Low</span><span>Optimal</span><span>High</span><span>Very High</span></div>
+              <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-target"/></svg>TRAINING LOAD</span><span class="badge badge--aqua" data-bind="trainingLoadStatus">OPTIMAL</span></div>
+              <div class="metric metric--md"><span class="metric__value" data-bind="load7">315</span><span class="metric__unit">TRIMP · 7 days</span></div>
+              <p class="text-muted small">Acute : chronic <b data-bind="acwrRatio">0.85</b> · <span data-bind="acwrLabel">steady build</span></p>
+              <div class="load-scale"><span class="load-scale__seg"></span><span class="load-scale__seg load-scale__seg--opt"></span><span class="load-scale__seg"></span><span class="load-scale__seg"></span><i class="load-scale__marker" data-bind-left="acwrPct"></i></div>
+              <div class="load-scale__labels"><span>Deload</span><span>Steady</span><span>High</span><span>Spike</span></div>
             </section>
 
             <!-- Today's route preview -->
@@ -600,6 +602,19 @@
             <div class="stat-box"><span>Jacket Battery</span><b><span data-bind="jacketBattery">82</span>%</b></div>
           </div>
 
+          <div class="card rr-card">
+            <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-activity"/></svg>RR INTERVALS · LAST 60 BEATS</span><span class="text-muted small nowrap"><span data-bind="rrBreathing">—</span> breaths/min</span></div>
+            <div class="chart chart--sm" data-chart="rr60"></div>
+            <div class="stat-grid stat-grid--5 mt-md">
+              <div class="stat-box"><span>Mean RR</span><b><span data-bind="hrvMeanRR">—</span> <small>ms</small></b></div>
+              <div class="stat-box"><span>Heart rate</span><b><span data-bind="hrvHr">—</span> <small>bpm</small></b></div>
+              <div class="stat-box"><span>RMSSD</span><b><span data-bind="hrvRmssd">—</span> <small>ms</small></b></div>
+              <div class="stat-box"><span>SDNN</span><b><span data-bind="hrvSdnn">—</span> <small>ms</small></b></div>
+              <div class="stat-box"><span>pNN50</span><b><span data-bind="hrvPnn50">—</span> <small>%</small></b></div>
+            </div>
+            <p class="text-muted small mt-sm">Each R peak is one beat. The gap between peaks is the RR interval, and heart rate = 60 000 ÷ RR in ms. The wave in the RR series is breathing (respiratory sinus arrhythmia). <button class="link-btn" data-go="formulas">How it's calculated</button></p>
+          </div>
+
           <div class="section-head"><h2>ECG History</h2><button class="btn btn--ghost btn--sm" data-action="export-ecg-all"><svg><use href="#i-download"/></svg>Export CSV</button></div>
           <div class="ecg-history" data-ecg-history></div>
           <p class="disclaimer-line text-muted">Demo ECG rendering for interface evaluation. Not a diagnostic device.</p>
@@ -660,7 +675,10 @@
               <div class="live__stat"><b><span data-bind="actElevation">0</span> m</b><span>Elevation</span></div>
               <div class="live__stat"><b><span data-bind="temp">36.7</span><span data-bind="tempUnit">°C</span></b><span>Body temp</span></div>
               <div class="live__stat"><b><span data-bind="fatigue">32</span>%</b><span>Fatigue</span></div>
-              <div class="live__stat"><b data-bind="trainingLoad">68</b><span>Training load</span></div>
+              <div class="live__stat"><b data-bind="actTrimp">0</b><span>Load (TRIMP)</span></div>
+              <div class="live__stat"><b><span data-bind="psi">0.0</span></b><span>Heat strain</span></div>
+              <div class="live__stat"><b><span data-bind="spo2">98</span><small data-bind="spo2Flag"></small></b><span>SpO₂ · optical</span></div>
+              <div class="live__stat"><b data-bind="actZone">—</b><span data-bind="actZoneName">Zone</span></div>
               <div class="live__stat"><b data-bind="bodyBattery">78</b><span>Body battery</span></div>
               <div class="live__stat"><b data-bind="gpsStrength">Strong</b><span>GPS</span></div>
               <div class="live__stat"><b data-bind="actSteps">0</b><span>Steps</span></div>
@@ -739,19 +757,48 @@
             <div class="stat-box"><span>Calories</span><b><span data-sum-field="calories">512</span> <small>kcal</small></b></div>
             <div class="stat-box"><span>Average HR</span><b><span data-sum-field="avgHr">128</span> <small>BPM</small></b></div>
             <div class="stat-box"><span>Maximum HR</span><b><span data-sum-field="maxHr">158</span> <small>BPM</small></b></div>
-            <div class="stat-box"><span>Elevation gain</span><b><span data-sum-field="elevation">82</span> <small>m</small></b></div>
+            <div class="stat-box"><span>Elevation</span><b><span data-sum-field="elevation">82</span> <small>m</small></b></div>
             <div class="stat-box"><span>Steps</span><b data-sum-field="steps">8,966</b></div>
-            <div class="stat-box"><span>Temperature avg</span><b data-sum-field="avgTemp">36.9°C</b></div>
+            <div class="stat-box"><span>Avg temp</span><b data-sum-field="avgTemp">36.9°C</b></div>
             <div class="stat-box"><span>Fatigue change</span><b class="c-orange" data-sum-field="fatigueDelta">+9</b></div>
             <div class="stat-box"><span>Body battery change</span><b class="c-aqua" data-sum-field="bbDelta">−14</b></div>
-            <div class="stat-box"><span>Training load</span><b data-sum-field="load">68</b></div>
+            <div class="stat-box stat-box--aqua"><span>Session load</span><b><span data-sum-field="trimp">73</span> <small>TRIMP</small></b></div>
+            <div class="stat-box"><span>HR drift</span><b><span data-sum-field="drift">+3.1</span><small>%</small></b></div>
+            <div class="stat-box"><span>Peak heat strain</span><b><span data-sum-field="psiPeak">4.2</span> <small>/ 10 PSI</small></b></div>
           </div>
-          <div class="card"><div class="card__head"><span class="card__label">HEART RATE</span><span class="text-muted small">bpm</span></div><div class="chart" data-chart="sumHr"></div></div>
+          <div class="card">
+            <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-heart"/></svg>HEART RATE vs YOUR FIVE ZONES</span><span class="text-muted small" data-sum-field="zoneBasis">rest 61 · max 181</span></div>
+            <div class="zonechart"><div class="chart" data-chart="sumHr"></div><div class="zonetime" data-zone-time="summary"></div></div>
+            <p class="text-muted small mt-sm" data-sum-field="zoneNote">Zones set from resting and max heart rate (Karvonen).</p>
+          </div>
+          <div class="card">
+            <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-trend-down"/></svg>HR RECOVERY</span><span class="chip chip--xs" data-sum-field="hrrState">Measuring…</span></div>
+            <div class="hrr">
+              <div class="chart chart--sm hrr__chart" data-chart="sumHrr"></div>
+              <div class="hrr__side">
+                <div class="stat-box stat-box--green"><span>HRR60 · drop in 60 s</span><b><span data-sum-field="hrr60">—</span> <small>bpm</small></b><small data-sum-field="hrrLabel">Stand still after stopping</small></div>
+                <div class="stat-box"><span>HRR120 · in 120 s</span><b><span data-sum-field="hrr120">—</span> <small>bpm</small></b></div>
+              </div>
+            </div>
+            <p class="text-muted small mt-sm">HRR60 = HRpeak − HR 60 s after stopping. A bigger drop means fitter and fresher; 12 bpm or less is a warning sign.</p>
+          </div>
+          <div class="card">
+            <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-droplet"/></svg>SpO₂ AND TEMPERATURE</span><span class="text-muted small" data-sum-field="repNote">shaded = hard repetitions</span></div>
+            <p class="eyebrow">SpO₂ · %</p>
+            <div class="chart chart--sm" data-chart="sumSpo2"></div>
+            <p class="eyebrow mt-md">Body temperature · <span data-bind="tempUnit">°C</span></p>
+            <div class="chart chart--sm" data-chart="sumTemp"></div>
+            <div class="stat-grid stat-grid--4 mt-md">
+              <div class="stat-box"><span>Resting SpO₂</span><b><span data-sum-field="spo2Rest">98</span> <small>%</small></b></div>
+              <div class="stat-box"><span>Lowest SpO₂</span><b><span data-sum-field="spo2Min">—</span> <small>%</small></b></div>
+              <div class="stat-box"><span>Time below 95 %</span><b><span data-sum-field="timeBelow95">0</span> <small>min</small></b></div>
+              <div class="stat-box"><span>Temperature rise</span><b data-sum-field="tempRise">+0.6 °C</b></div>
+            </div>
+            <p class="text-muted small mt-sm">Optical SpO₂ is unreliable while moving. It is sampled in the pauses and easy phases; a drop of 4 % or more from rest is the signal.</p>
+          </div>
           <div class="card"><div class="card__head"><span class="card__label">PACE</span><span class="text-muted small">min/km</span></div><div class="chart" data-chart="sumPace"></div></div>
           <div class="card"><div class="card__head"><span class="card__label">ELEVATION</span><span class="text-muted small">m</span></div><div class="chart" data-chart="sumElev"></div></div>
-          <div class="card"><div class="card__head"><span class="card__label">BODY TEMPERATURE</span><span class="text-muted small">°C</span></div><div class="chart" data-chart="sumTemp"></div></div>
           <div class="card"><div class="card__head"><span class="card__label">FATIGUE</span><span class="text-muted small">/100</span></div><div class="chart" data-chart="sumFatigue"></div></div>
-          <div class="card"><div class="card__head"><span class="card__label">HEART RATE ZONES</span><span class="text-muted small">time in zone</span></div><div class="zones" data-zones="summary"></div></div>
           <div class="summary__actions">
             <button class="btn btn--primary btn--block" data-sum="save"><svg><use href="#i-check"/></svg>Save Activity</button>
             <div class="btn-row">
@@ -837,6 +884,20 @@
             <div class="stat-box"><span>Temp. deviation</span><b data-bind="tempDeviation">+0.1°C</b></div>
             <div class="stat-box"><span>Respiration</span><b><span data-bind="resp">15</span><small>/min</small></b></div>
           </div>
+          <div class="card">
+            <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-activity"/></svg>MORNING HRV · 28 DAYS</span><span class="text-muted small">ln RMSSD on waking</span></div>
+            <div class="legend-inline"><span><i class="c-bg-muted"></i>Daily reading</span><span><i class="c-bg-blue"></i>7-day average</span><span><i class="c-bg-blue c-band"></i>Normal range</span></div>
+            <div class="chart" data-chart="hrv28"></div>
+            <p class="eyebrow mt-md">Resting heart rate on waking · bpm</p>
+            <div class="chart chart--xs" data-chart="rhr28" style="height:84px"></div>
+            <div class="stat-grid stat-grid--4 mt-md">
+              <div class="stat-box"><span>Today, ln RMSSD</span><b data-bind="lnToday">3.99</b><small>= <span data-bind="morningRmssd">54</span> ms on waking</small></div>
+              <div class="stat-box"><span>Normal range</span><b data-bind="hrvRange">3.94–3.99</b><small>28-day mean ± ½ SD</small></div>
+              <div class="stat-box"><span>Resting HR today</span><b><span data-bind="restingHr">61</span> <small>bpm</small></b><small>z-score <span data-bind="rhrZ">−0.3</span></small></div>
+              <div class="stat-box" data-class-base="stat-box" data-bind-class="readinessBox"><span>Readiness</span><b class="stat-box__text" data-bind="readinessLabel">In range: train as planned</b><small>HRV z-score <span data-bind="hrvZ">+0.6</span></small></div>
+            </div>
+            <p class="note mt-md"><svg><use href="#i-info"/></svg><span data-bind="readinessNote">Ease off when HRV z is −1 or lower, resting-HR z is +1 or higher, or skin temperature sits 0.5 °C above baseline.</span></p>
+          </div>
           <div class="card"><div class="card__head"><span class="card__label">7-DAY RECOVERY</span><span class="text-muted small">%</span></div><div class="chart" data-chart="recovery7"></div></div>
           <div class="card">
             <h3 class="card__label">Recovery categories</h3>
@@ -863,7 +924,28 @@
             <div class="stat-box"><span>Respiration</span><b><span data-bind="resp">15</span><small>/min</small></b></div>
           </div>
           <div class="card"><div class="card__head"><span class="card__label">24-HOUR HEART RATE</span><span class="text-muted small">bpm</span></div><div class="chart" data-chart="hr24"></div></div>
-          <div class="card"><div class="card__head"><span class="card__label">HEART RATE ZONES</span><span class="text-muted small">today</span></div><div class="zones" data-zones="today"></div></div>
+          <div class="card"><div class="card__head"><span class="card__label">HEART RATE ZONES · KARVONEN</span><span class="text-muted small" data-bind="zonesBasis">rest 61 · max 181</span></div><div class="zones" data-zones="today"></div><p class="text-muted small mt-sm">Target = HRrest + % × (HRmax − HRrest). HRmax from Tanaka (208 − 0.7 × age) unless you set it in your profile. <button class="link-btn" data-go="formulas">All formulas</button></p></div>
+          <div class="card">
+            <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-trend-down"/></svg>HEART-RATE RECOVERY</span><span class="text-muted small" data-bind="hrrSource">—</span></div>
+            <div class="hrr">
+              <div class="chart chart--sm hrr__chart" data-chart="hrrCurve"></div>
+              <div class="hrr__side">
+                <div class="stat-box stat-box--green"><span>HRR60 · drop in 60 s</span><b><span data-bind="hrr60">—</span> <small>bpm</small></b><small data-bind="hrrLabel">—</small></div>
+                <div class="stat-box"><span>HRR120 · in 120 s</span><b><span data-bind="hrr120">—</span> <small>bpm</small></b></div>
+                <div class="hrr__weeks"><span class="text-muted small">HRR60 over the last 8 weeks</span><div class="chart chart--xs" data-chart="hrrWeeks" style="height:64px"></div></div>
+              </div>
+            </div>
+            <p class="text-muted small mt-sm">How to read it: stop at the same effort each time and stay still. A 60-second drop that grows over the weeks shows improving fitness. A sudden smaller drop points to fatigue, heat or oncoming illness.</p>
+          </div>
+          <div class="stat-grid stat-grid--3">
+            <div class="stat-box"><span>VO₂max</span><b><span data-bind="vo2max">46</span> <small>ml/kg/min</small></b><small>15.3 × HRmax ÷ HRrest</small></div>
+            <div class="stat-box"><span>HR drift</span><b><span data-bind="driftLast">—</span><small>%</small></b><small data-bind="driftLabel">under 5 % = aerobic base holds</small></div>
+            <div class="stat-box"><span>PAT</span><b><span data-bind="pat">—</span> <small>ms</small></b><small>Pulse arrival · ECG R-peak → PPG</small></div>
+          </div>
+          <div class="card">
+            <div class="card__head"><span class="card__label">HR CROSS-CHECK · ECG vs OPTICAL</span><span class="badge badge--green" data-bind="crossCheckStatus">AGREE</span></div>
+            <div class="card__row card__row--3"><div class="kv"><b><span data-bind="hr">72</span> BPM</b><span class="kv__label">ECG (R-peaks)</span></div><div class="kv"><b><span data-bind="ppgHr">73</span> BPM</b><span class="kv__label">Optical (PPG)</span></div><div class="kv"><b data-bind="crossCheckText">Agree within 1 bpm</b><span class="kv__label">> 5 bpm apart = motion artefact</span></div></div>
+          </div>
           <div class="card"><div class="card__head"><span class="card__label">RESTING HR TREND</span><span class="text-muted small">7 days</span></div><div class="chart chart--sm" data-chart="rhr7"></div></div>
           <div class="card"><div class="card__head"><span class="card__label">HRV TREND</span><span class="text-muted small">7 days · ms</span></div><div class="chart chart--sm" data-chart="hrv7"></div></div>
           <div class="card"><div class="card__head"><span class="card__label">HEART RATE DURING ACTIVITY</span><span class="text-muted small" data-bind="lastActivityName">Morning Walk</span></div><div class="chart chart--sm" data-chart="lastActHr"></div></div>
@@ -934,13 +1016,18 @@
             <i class="tabs__indicator"></i>
           </div>
           <div class="card card--load">
-            <div class="card__head"><span class="card__label">TRAINING LOAD</span><span class="badge badge--aqua" data-bind="trainingLoadStatus">OPTIMAL</span></div>
-            <div class="card__split">
-              <div class="metric metric--md"><span class="metric__value" data-bind="trainingLoad">68</span><span class="metric__unit">current</span></div>
-              <div class="chart chart--xs" data-chart="load7"></div>
+            <div class="card__head"><span class="card__label"><svg class="ico"><use href="#i-target"/></svg>TRAINING LOAD · 28 DAYS</span><span class="badge badge--aqua" data-bind="trainingLoadStatus">OPTIMAL</span></div>
+            <div class="legend-inline"><span><i class="c-bg-orange"></i>Daily load (TRIMP)</span><span><i class="c-bg-text"></i>7-day average</span></div>
+            <div class="chart" data-chart="load28"></div>
+            <p class="eyebrow mt-md">Acute : chronic ratio · shaded band is the steady-build range 0.8–1.3 · line at 1.5 is a spike</p>
+            <div class="chart chart--xs" data-chart="acwr28" style="height:96px"></div>
+            <div class="stat-grid stat-grid--4 mt-md">
+              <div class="stat-box"><span>Load, last 7 days</span><b><span data-bind="load7">315</span> <small>TRIMP</small></b></div>
+              <div class="stat-box"><span>Average week, 28 days</span><b><span data-bind="avgWeek28">370</span> <small>TRIMP</small></b></div>
+              <div class="stat-box"><span>Ratio today</span><b data-bind="acwrRatio">0.85</b><small data-bind="acwrLabel">steady build</small></div>
+              <div class="stat-box"><span>Monotony, mean ÷ SD of 7 days</span><b data-bind="monotony">1.2</b></div>
             </div>
-            <div class="load-scale"><span class="load-scale__seg"></span><span class="load-scale__seg load-scale__seg--opt"></span><span class="load-scale__seg"></span><span class="load-scale__seg"></span><i class="load-scale__marker" data-bind-left="trainingLoad"></i></div>
-            <div class="load-scale__labels"><span>Low</span><span>Optimal</span><span>High</span><span>Very High</span></div>
+            <p class="text-muted small mt-sm">TRIMP = minutes × x × 0.64 × e^(1.92x), x = (HRavg − HRrest) ÷ (HRmax − HRrest). Ratio above 1.5 is linked to higher injury risk. <button class="link-btn" data-go="formulas">Formulas</button></p>
           </div>
           <div class="analytics-grid" data-analytics-grid></div>
         </div>
@@ -952,6 +1039,10 @@
         <div class="page">
           <div class="card card--glow insight-hero"><div class="hero__bg" aria-hidden="true"></div><div class="hero__content"><p class="eyebrow">TODAY'S READ</p><h2 class="hero__title">Suitable for moderate training</h2><p class="hero__sub">Recovery and HRV trends support a productive session; keep intensity below threshold if fatigue climbs.</p></div></div>
           <div class="insight-list" data-insights></div>
+          <div class="card list-card">
+            <button class="row" data-go="formulas"><svg class="row__icon"><use href="#i-sliders"/></svg><span class="row__text"><b>How these numbers are calculated</b><span>Twelve calculations with your own worked example</span></span><svg class="row__chev"><use href="#i-chevron-right"/></svg></button>
+            <button class="row" data-go="signals"><svg class="row__icon"><use href="#i-cpu"/></svg><span class="row__text"><b>Signal map</b><span>Four sensors — what is collected and what it tells your training</span></span><svg class="row__chev"><use href="#i-chevron-right"/></svg></button>
+          </div>
           <p class="note"><svg><use href="#i-info"/></svg>Insights are generated from simulated wellness trends for demonstration and are not medical diagnoses.</p>
         </div>
       </section>
@@ -1009,6 +1100,7 @@
             <button class="action-tile" data-device="find"><svg><use href="#i-vibrate"/></svg><span>Find My Jacket</span></button>
             <button class="action-tile" data-device="info"><svg><use href="#i-info"/></svg><span>Device Information</span></button>
             <button class="action-tile" data-device="diagnostic"><svg><use href="#i-stethoscope"/></svg><span>Diagnostic Check</span></button>
+            <button class="action-tile" data-go="signals"><svg><use href="#i-cpu"/></svg><span>Signal Map</span></button>
             <button class="action-tile" data-action="demo-low-battery"><svg><use href="#i-alert"/></svg><span>Simulate Low Battery</span></button>
           </div>
           <div class="card" data-device-progress hidden>
@@ -1047,7 +1139,7 @@
             <button class="row" data-profile-edit="privacy"><svg class="row__icon"><use href="#i-shield"/></svg><span class="row__text"><b>Privacy</b><span data-bind="privacyText">Data stays on this device</span></span><svg class="row__chev"><use href="#i-chevron-right"/></svg></button>
             <button class="row" data-profile-edit="emergency"><svg class="row__icon"><use href="#i-phone"/></svg><span class="row__text"><b>Emergency contact</b><span data-bind="emergencyText">Not set</span></span><svg class="row__chev"><use href="#i-chevron-right"/></svg></button>
             <button class="row" data-action="export-daily"><svg class="row__icon"><use href="#i-download"/></svg><span class="row__text"><b>Data export</b><span>Daily metrics, activities and ECG sessions (CSV)</span></span><svg class="row__chev"><use href="#i-chevron-right"/></svg></button>
-            <button class="row" data-action="about"><svg class="row__icon"><use href="#i-info"/></svg><span class="row__text"><b>About Biotex Life</b><span>Version 1.0 · Biotex Life Solutions</span></span><svg class="row__chev"><use href="#i-chevron-right"/></svg></button>
+            <button class="row" data-action="about"><svg class="row__icon"><use href="#i-info"/></svg><span class="row__text"><b>About Biotex Life</b><span>Version 1.1 · Biotex Life Solutions</span></span><svg class="row__chev"><use href="#i-chevron-right"/></svg></button>
           </div>
           <div class="profile-brand"><span class="brand-logo brand-logo--md"><img alt="Biotex" hidden><svg class="brand-logo__svg" aria-label="Biotex Life"><use href="#logo-full"/></svg></span><p class="text-muted small">Connected Human Performance</p></div>
         </div>
@@ -1074,8 +1166,30 @@
           <div class="card about-card">
             <h3 class="card__label">Important</h3>
             <p class="small">Biotex Life is presented here as a wellness, fitness and physiological monitoring interface. The prototype is not intended to diagnose, treat, cure or prevent any medical condition and does not replace professional medical evaluation.</p>
-            <p class="text-muted small mt-sm">Biotex Life v1.0 · © 2026 Biotex Life Solutions Pvt. Ltd., Hyderabad</p>
+            <p class="text-muted small mt-sm">Biotex Life v1.1 · © 2026 Biotex Life Solutions Pvt. Ltd., Hyderabad · <button class="link-btn" data-go="signals">Signal map</button> · <button class="link-btn" data-go="formulas">Calculations</button></p>
           </div>
+        </div>
+      </section>
+
+      <!-- ================= REFERENCE: SIGNAL MAP ================= -->
+      <section class="screen" data-screen="signals">
+        <header class="screen-header"><button class="icon-btn" data-back aria-label="Back"><svg><use href="#i-chevron-left"/></svg></button><h1 class="screen-title">SIGNAL MAP</h1><div class="screen-header__actions"><button class="btn btn--ghost btn--sm" data-go="formulas">Calculations</button></div></header>
+        <div class="page">
+          <div class="ref-intro"><p class="eyebrow">Reference 01 · Signal map</p><h2>Four sensors, what you can collect, and what it tells your training</h2></div>
+          <div class="signal-grid" data-signal-map></div>
+          <p class="eyebrow mt-md">Combined · only possible with two or more sensors</p>
+          <div class="combined-grid" data-signal-combined></div>
+          <p class="note"><svg><use href="#i-info"/></svg>Skin temperature is not core temperature. Optical HR and SpO₂ degrade with movement, so trust them at rest, in pauses and during sleep. These are training metrics, not a medical diagnosis.</p>
+        </div>
+      </section>
+
+      <!-- ================= REFERENCE: CALCULATIONS ================= -->
+      <section class="screen" data-screen="formulas">
+        <header class="screen-header"><button class="icon-btn" data-back aria-label="Back"><svg><use href="#i-chevron-left"/></svg></button><h1 class="screen-title">CALCULATIONS</h1><div class="screen-header__actions"><button class="btn btn--ghost btn--sm" data-go="signals">Signal map</button></div></header>
+        <div class="page">
+          <div class="ref-intro"><p class="eyebrow">Reference 02 · Calculations</p><h2>Twelve calculations that turn raw signals into training decisions</h2><p class="text-muted" data-bind="formulaContext">Worked example with your profile.</p><div class="legend-inline"><span>Sensor needed</span><span><i class="c-bg-blue"></i>ECG</span><span><i class="c-bg-orange"></i>Heart rate</span><span><i class="c-bg-green"></i>SpO₂</span><span><i class="c-bg-amber"></i>Temperature</span></div></div>
+          <div class="formula-grid" data-formulas></div>
+          <p class="note"><svg><use href="#i-info"/></svg>Sources: Tanaka 2001 (HRmax), Karvonen 1957 (zones), Banister 1991 (TRIMP), Gabbett 2016 (ACWR), Uth 2004 (VO₂max), Keytel 2005 (energy), Moran 1998 (PSI). Population formulas carry individual error; calibrate to the athlete.</p>
         </div>
       </section>
 
@@ -1130,6 +1244,7 @@
 <script src="js/utils.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/data.js"></script>
+<script src="js/metrics.js"></script>
 <script src="js/simulator.js"></script>
 <script src="js/ecg.js"></script>
 <script src="js/charts.js"></script>

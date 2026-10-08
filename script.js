@@ -1,7 +1,8 @@
 /* ==========================================================================
    BIOTEX LIFE — script.js
    App bootstrap: wires simulator, device, notifications, activity tracker,
-   navigation, ECG renderers and screen controllers; builds the view model.
+   navigation, ECG renderers and screen controllers; builds the view model
+   and the shared metrics context (readiness, load, recovery, HRV).
    ========================================================================== */
 (function (BL) {
   'use strict';
@@ -10,7 +11,7 @@
   const SCREEN_CTRL = {
     splash: 'splash', onboarding: 'onboarding', connect: 'connect', home: 'home', ecg: 'ecg', activity: 'activity', 'activity-live': 'live', map: 'map', 'activity-summary': 'summary',
     'body-battery': 'bodyBattery', fatigue: 'fatigue', recovery: 'recovery', heart: 'heart', temperature: 'temperature', sleep: 'sleep', analytics: 'analytics', insights: 'insights',
-    notifications: 'notifications', device: 'device', profile: 'profile', settings: 'settings', history: 'history',
+    notifications: 'notifications', device: 'device', profile: 'profile', settings: 'settings', history: 'history', signals: 'signals', formulas: 'formulas',
   };
 
   const App = {
@@ -22,13 +23,15 @@
       this.activity = new BL.ActivityTracker(this.sim);
       this.nav = new BL.NavigationManager();
       this.hrAlerted = false;
+      this.restSnapshot = null;
 
       this.loadBrandLogo();
       BL.UI.initBindings();
 
-      const hrFn = () => this.sim.state.hr;
-      this.ecgMini = new BL.ECGRenderer($('[data-ecg="mini"]'), { mini: true, mmPx: 3, hr: hrFn });
-      this.ecgMain = new BL.ECGRenderer($('[data-ecg="main"]'), { mmPx: 5, hr: hrFn });
+      const hrFn = () => this.sim.state.hr, hrvFn = () => this.sim.state.hrv;
+      this.ecgMini = new BL.ECGRenderer($('[data-ecg="mini"]'), { mini: true, mmPx: 3, hr: hrFn, hrv: hrvFn });
+      // every cardiac cycle of the main trace feeds the RR-interval buffer → HRV (RMSSD / SDNN / pNN50)
+      this.ecgMain = new BL.ECGRenderer($('[data-ecg="main"]'), { mmPx: 5, hr: hrFn, hrv: hrvFn, onBeat: (rrMs) => { if (BL.screens.ecg && BL.screens.ecg.beat) BL.screens.ecg.beat(rrMs); } });
 
       Object.keys(BL.screens).forEach((k) => { try { if (BL.screens[k].init) BL.screens[k].init(); } catch (err) { console.error('[BL] screen init failed:', k, err); } });
 
@@ -45,6 +48,7 @@
       this.sim.on('tick', () => { this.refresh(); if (BL.screens.home.tick) BL.screens.home.tick(); });
       this.activity.on('tick', (s) => { this.refreshActivity(); this.checkAlerts(s); });
       this.activity.on('state', () => { this.hrAlerted = false; this.refresh(true); });
+      this.activity.on('history', () => { this.refresh(true); if (BL.screens.insights) BL.screens.insights.render(); });
       this.activity.on('speed', (m) => BL.toast(`Demo speed ×${m}`, 'info'));
       this.device.on('change', () => this.refresh(true));
       this.device.on('tick', () => this.refresh());
@@ -90,8 +94,54 @@
       tryNext(0);
     },
 
+    /* ---------- Metrics context (shared by insights, recovery, heart, analytics, formulas) ---------- */
+
+    /** Resting snapshot used for the morning readiness check — frozen while an activity is running or the heart rate is elevated */
+    restingSnapshot() {
+      const s = this.sim.state;
+      const atRest = !this.activity.isRunning() && !this.sim.recovery && s.hr < 95;
+      if (atRest || !this.restSnapshot) this.restSnapshot = { hrv: s.hrv, restingHr: s.restingHr, tempDev: s.tempDeviation };
+      return this.restSnapshot;
+    },
+
+    /** 28-day ln(RMSSD) + resting-HR series with today's value from the jacket, normal range and z-score readiness verdict */
+    readinessData() {
+      const D = BL.data.DAILY_28, M = BL.metrics, snap = this.restingSnapshot();
+      const ln = D.lnRmssd.slice(); ln[ln.length - 1] = round(Math.log(Math.max(5, snap.hrv)), 2);
+      const rhr = D.restingHr.slice(); rhr[rhr.length - 1] = snap.restingHr;
+      const avg7 = ln.map((_, i) => round(M.mean(ln.slice(Math.max(0, i - 6), i + 1)), 2));
+      const range = M.normalRange(ln);
+      const readiness = M.readiness({ lnToday: ln[ln.length - 1], ln28: ln, rhrToday: rhr[rhr.length - 1], rhr28: rhr, tempDev: snap.tempDev });
+      return { ln, rhr, avg7, range, readiness, lnToday: ln[ln.length - 1], rhrToday: rhr[rhr.length - 1] };
+    },
+
+    metricsContext() {
+      const act = this.activity, a = act.athlete();
+      const ls = act.loadStats(), rd = this.readinessData();
+      const rec = act.latestWithRecovery();
+      const driftSrc = [act.lastSummary].concat(act.getHistory()).find((x) => x && x.drift != null); // latest steady-pace session
+      const ecg = BL.screens.ecg;
+      return {
+        athlete: a,
+        acwr: ls.acwr, loadStats: ls,
+        readiness: rd.readiness, readinessData: rd,
+        hrr: rec ? { hrr60: rec.hrr60, hrr120: rec.hrr120, source: rec.name, synthetic: !!rec.recoverySynthetic } : null,
+        vo2max: BL.metrics.vo2max(a.rest, a.max),
+        drift: driftSrc ? driftSrc.drift : null, driftSource: driftSrc ? driftSrc.name : null,
+        hrv: ecg && ecg.hrvStats ? ecg.hrvStats : null,
+      };
+    },
+
     /* ---------- View model ---------- */
     initials(name) { return name.replace(/^dr\.?\s+/i, '').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || 'B'; },
+
+    /** piecewise position of the ACWR marker on the 4-segment load scale: <0.8 | 0.8–1.3 | 1.3–1.5 | >1.5 */
+    acwrPct(r) {
+      if (r < 0.8) return (r / 0.8) * 25;
+      if (r <= 1.3) return 25 + ((r - 0.8) / 0.5) * 25;
+      if (r <= 1.5) return 50 + ((r - 1.3) / 0.2) * 25;
+      return 75 + clamp(((r - 1.5) / 0.5) * 25, 0, 25);
+    },
 
     activityVm() {
       const act = this.activity, s = act.session, f = BL.fmt, running = act.isRunning();
@@ -99,6 +149,16 @@
       const gps = !gpsOn ? 'Off' : running ? s.gps : 'Ready';
       const last = act.getHistory()[0];
       const paceCap = running && s.typeDef.speedKmh > 0 ? (1000 / (s.typeDef.speedKmh / 3.6)) * 1.6 : 0;
+      const vit = this.sim.state;
+      let actTrimp = 0, actZone = '—', actZoneName = 'Zone';
+      if (running) {
+        const a = act.athlete();
+        const avgHr = s.hrTime > 0 ? s.hrSum / s.hrTime : vit.hr;
+        actTrimp = Math.round(BL.metrics.trimp(s.elapsed / 60, avgHr, a.rest, a.max, a.sex));
+        const zones = act.zonesCache || act.zones(), zi = BL.metrics.zoneIndex(vit.hr, zones);
+        actZone = zi >= 0 ? `Z${zi + 1}` : 'Z0';
+        actZoneName = zi >= 0 ? `${zones[zi].name} · ${zones[zi].min}–${zones[zi].max}` : 'Below zone 1';
+      }
       return {
         activityInProgress: running, noActivity: !running,
         actTimer: BL.fmtTimer(running ? s.elapsed : 0),
@@ -110,10 +170,48 @@
         actCalories: running ? Math.round(s.calories) : 0, actElevation: running ? s.elevation : 0, actSteps: running ? BL.fmtNumber(s.steps) : '0',
         actStateText: act.state === 'paused' ? 'PAUSED' : running ? 'ACTIVE' : 'IDLE',
         actStateBadge: act.state === 'paused' ? 'is-paused' : running ? 'is-active' : 'is-idle',
+        actTrimp, actZone, actZoneName,
+        psi: (vit.psi || 0).toFixed(1),
+        spo2Flag: vit.spo2Reliable === false ? ' · moving' : '',
         gpsStrength: gps, gpsChip: 'GPS ' + gps, gpsChipLong: gpsOn ? 'GPS Connected' : 'GPS Unavailable', gpsDot: gpsOn ? 'status-dot--live' : 'status-dot--off',
         simSpeed: `×${act.speedMul}`,
         lastActivityName: last ? last.name : '—',
         todayRouteDistance: f.distance(last ? last.distanceKm : 6.24),
+      };
+    },
+
+    /** derived training metrics for the view model — Karvonen basis, HRR, VO₂max, drift, ACWR, cross-check, readiness */
+    metricsVm() {
+      const M = BL.metrics, s = this.sim.state, p = BL.settings.profile();
+      const ctx = this.metricsContext();
+      const ls = ctx.loadStats, acwr = ctx.acwr, rd = ctx.readinessData, r = rd.readiness, a = ctx.athlete;
+      const hrr = ctx.hrr;
+      const running = this.activity.isRunning();
+      const phase = this.sim.activity ? this.sim.activity.phase : 'rest';
+      // optical pulse rate: agrees at rest, drifts apart on hard intervals (motion artefact)
+      const amp = running && phase === 'hard' ? 7 : running ? 2.6 : 1.2;
+      const ppgHr = Math.round(s.hr + amp * Math.sin(Date.now() / 1900) + (running && phase === 'hard' ? 2 : 0));
+      const cc = M.crossCheck(s.hr, ppgHr);
+      const pat = Math.round(210 - 0.35 * (s.hr - 72));
+      const driftLast = ctx.drift;
+      return {
+        load7: acwr.load7, avgWeek28: acwr.avgWeek28,
+        acwrRatio: acwr.ratio.toFixed(2), acwrLabel: M.acwrLabel(acwr.ratio), acwrPct: this.acwrPct(acwr.ratio),
+        trainingLoadStatus: M.acwrStatus(acwr.ratio), trainingLoadStatusBadge: M.acwrBadge(acwr.ratio),
+        monotony: ls.monotony != null ? ls.monotony.toFixed(2) : '—',
+        zonesBasis: `rest ${a.rest} · max ${a.max} bpm${p.maxHr && p.maxHr !== M.hrMax(a.age) ? ' (custom)' : ''}`,
+        hrrSource: hrr ? `${hrr.source}${hrr.synthetic ? ' · estimated' : ''}` : 'No session yet',
+        hrr60: hrr && hrr.hrr60 != null ? `−${hrr.hrr60}` : '—', hrr120: hrr && hrr.hrr120 != null ? `−${hrr.hrr120}` : '—', hrrLabel: M.hrrLabel(hrr ? hrr.hrr60 : null),
+        vo2max: ctx.vo2max,
+        driftLast: driftLast != null ? `${driftLast >= 0 ? '+' : '−'}${Math.abs(driftLast).toFixed(1)}` : '—',
+        driftLabel: driftLast == null ? 'Run one steady-pace session to measure' : `${ctx.driftSource} · ${driftLast < 5 ? 'aerobic base holds for this duration' : driftLast < 10 ? 'mild drift — heat, dehydration or pace' : 'high drift — slow down or shorten'}`,
+        pat, ppgHr,
+        crossCheckStatus: cc.artefact ? 'ARTEFACT' : 'AGREE', crossCheckStatusBadge: cc.artefact ? 'orange' : 'green', crossCheckText: cc.label,
+        lnToday: rd.lnToday.toFixed(2), morningRmssd: this.restingSnapshot().hrv, hrvRange: `${rd.range.from.toFixed(2)}–${rd.range.to.toFixed(2)}`,
+        rhrZ: `${r.rhrZ >= 0 ? '+' : '−'}${Math.abs(r.rhrZ).toFixed(2)}`, hrvZ: `${r.hrvZ >= 0 ? '+' : '−'}${Math.abs(r.hrvZ).toFixed(2)}`,
+        readinessLabel: r.label, readinessBox: r.verdict === 'ease' ? 'stat-box--warn' : 'stat-box--ok',
+        readinessNote: r.flags.length ? `Ease off today: ${r.flags.join('; ')}.` : 'Ease off when HRV z is −1 or lower, resting-HR z is +1 or higher, or skin temperature sits 0.5 °C above baseline. None of those flags is raised today.',
+        formulaContext: `Worked example with your profile: age ${a.age}, ${a.sex === 'female' ? 'female' : 'male'}, ${a.kg} kg, resting HR ${a.rest} bpm, HRmax ${a.max} bpm.`,
       };
     },
 
@@ -136,7 +234,7 @@
         sleepTotal: BL.data.SLEEP.total,
         stepsFmt: BL.fmtNumber(s.steps), stepsPct: clamp((s.steps / p.stepGoal) * 100, 0, 100), stepGoalFmt: BL.fmtNumber(p.stepGoal),
         calories: s.calories, distanceFmt: f.distance(s.distanceKm, 1), distUnit: f.distUnit(), activeMinutes: s.activeMinutes,
-        trainingLoad: s.trainingLoad, trainingLoadStatus: d.trainingLoadStatus, trainingLoadStatusBadge: d.trainingLoadBadge,
+        trainingLoad: s.trainingLoad,
         jacketBattery: dev.battery, firmware: dev.firmware, btStatus: dev.btStatus, signalQuality: dev.signalQuality, signalQualityText: dev.connected ? `Signal ${dev.signal}` : 'No signal', noiseLevel: dev.connected ? dev.noise : '—', gpsStatus: dev.gpsStatus, lastSync: dev.lastSyncText(),
         deviceStatusText: dev.statusText(), deviceStatusShort: dev.statusShort(), deviceStatusMini: dev.connected ? 'Connected' : dev.state === 'disconnected' ? 'Disconnected' : 'Pairing…', deviceDisconnected: !dev.connected, deviceConnected: dev.connected,
         deviceDot: dev.connected ? 'status-dot--live' : dev.state === 'disconnected' ? 'status-dot--off' : 'status-dot--searching',
@@ -150,7 +248,7 @@
         privacyText: p.privacy === 'cloud' ? 'Encrypted cloud sync' : 'Data stays on this device',
         emergencyText: p.emergencyName ? `${p.emergencyName}${p.emergencyPhone ? ' · ' + p.emergencyPhone : ''}` : 'Not set',
         btAvailabilityNote: navigator.bluetooth ? 'Web Bluetooth available — demo pairing uses simulated jacket data.' : 'Demo pairing — Bluetooth hardware access is not available in this browser, so jacket data is simulated.',
-      }, ecg, this.activityVm());
+      }, ecg, this.metricsVm(), this.activityVm());
     },
 
     refresh(force) {
@@ -186,6 +284,7 @@
       if (BL.screens.activity) BL.screens.activity.renderWeek(false);
       if (BL.screens.history) BL.screens.history.render();
       if (BL.screens.activity) BL.screens.activity.renderRecent();
+      if (BL.screens.insights) BL.screens.insights.render();
     },
 
     checkAlerts(session) {
@@ -227,11 +326,17 @@
     },
 
     exportDaily() {
-      const s = this.sim.state, f = BL.fmt, hour = new Date().getHours();
+      const s = this.sim.state, hour = new Date().getHours(), ctx = this.metricsContext(), rd = ctx.readinessData, r = rd.readiness, a = ctx.athlete;
+      const hrv = ctx.hrv;
       const rows = [['Biotex Life — daily health metrics', new Date().toISOString().slice(0, 10)], [], ['Metric', 'Value', 'Unit'],
-        ['Heart rate (current)', s.hr, 'bpm'], ['Resting heart rate', s.restingHr, 'bpm'], ['Max heart rate today', s.hrMax, 'bpm'], ['HRV', s.hrv, 'ms'], ['SpO2', s.spo2, '%'], ['Respiration', s.resp, '/min'],
-        ['Body temperature', s.temp, '°C'], ['Temperature baseline', s.tempBaseline, '°C'], ['Body battery', s.bodyBattery, '/100'], ['Fatigue', s.fatigue, '/100'], ['Recovery', s.recovery, '%'], ['Stress', s.stress, '/100'], ['Sleep score', s.sleepScore, '/100'],
-        ['Steps', s.steps, ''], ['Calories', s.calories, 'kcal'], ['Distance', s.distanceKm.toFixed(2), 'km'], ['Active minutes', s.activeMinutes, 'min'], ['Training load', s.trainingLoad, ''], ['Jacket battery', this.device.battery, '%'],
+        ['Heart rate (current)', s.hr, 'bpm'], ['Resting heart rate', s.restingHr, 'bpm'], ['Max heart rate today', s.hrMax, 'bpm'], ['HRmax (profile / Tanaka)', a.max, 'bpm'], ['HRV', s.hrv, 'ms'], ['SpO2', s.spo2, '%'], ['Respiration', s.resp, '/min'],
+        ['Body temperature', s.temp, '°C'], ['Temperature baseline', s.tempBaseline, '°C'], ['Heat strain (PSI)', s.psi, '/10'], ['Body battery', s.bodyBattery, '/100'], ['Fatigue', s.fatigue, '/100'], ['Recovery', s.recovery, '%'], ['Stress', s.stress, '/100'], ['Sleep score', s.sleepScore, '/100'],
+        ['Steps', s.steps, ''], ['Calories', s.calories, 'kcal'], ['Distance', s.distanceKm.toFixed(2), 'km'], ['Active minutes', s.activeMinutes, 'min'], ['Jacket battery', this.device.battery, '%'],
+        [], ['Calculated metric', 'Value', 'Unit'],
+        ['ln RMSSD today', rd.lnToday, 'ln ms'], ['ln RMSSD normal range', `${rd.range.from}–${rd.range.to}`, 'ln ms'], ['HRV z-score', r.hrvZ, ''], ['Resting HR z-score', r.rhrZ, ''], ['Readiness', r.label, ''],
+        ['Live RMSSD (ECG)', hrv ? Math.round(hrv.rmssd) : '', 'ms'], ['Live SDNN (ECG)', hrv ? Math.round(hrv.sdnn) : '', 'ms'], ['Live pNN50 (ECG)', hrv ? hrv.pnn50 : '', '%'],
+        ['Load, last 7 days', ctx.acwr.load7, 'TRIMP'], ['Average weekly load, 28 days', ctx.acwr.avgWeek28, 'TRIMP'], ['Acute:chronic ratio', ctx.acwr.ratio, ''], ['Training monotony', ctx.loadStats.monotony, ''],
+        ['HRR60 (last session)', ctx.hrr ? ctx.hrr.hrr60 : '', 'bpm'], ['HRR120 (last session)', ctx.hrr ? ctx.hrr.hrr120 : '', 'bpm'], ['HR drift (last session)', ctx.drift != null ? ctx.drift : '', '%'], ['VO2max estimate (Uth)', ctx.vo2max, 'ml/kg/min'],
         [], ['Hour', 'Heart rate (bpm)', 'Temperature (°C)', 'Body battery']];
       for (let h = 0; h <= hour; h++) rows.push([`${h}:00`, h === hour ? s.hr : BL.data.HR_24[h], h === hour ? s.temp : this.sim.tempHistory[h], h === hour ? s.bodyBattery : BL.data.BB_24[h]]);
       BL.downloadFile(`biotex-daily-metrics-${new Date().toISOString().slice(0, 10)}.csv`, BL.toCSV(rows), 'text/csv');
@@ -239,7 +344,7 @@
     },
 
     about() {
-      BL.UI.modal({ title: 'About Biotex Life', body: `<div style="display:flex;justify-content:center;margin:4px 0 14px"><span class="brand-logo brand-logo--lg"><img alt="Biotex" ${document.documentElement.classList.contains('has-real-logo') ? `src="${$('.brand-logo img').src}"` : 'hidden'}><svg class="brand-logo__svg"><use href="#logo-full"/></svg></span></div><p><b>Biotex Life</b> v1.0 · Connected Human Performance for the Biotex ECG Jacket.</p><p>Biotex Life Solutions Pvt. Ltd., Hyderabad · ECG • Activity • Recovery</p><p class="small" style="margin-top:12px"><b>Important</b><br>Biotex Life is presented here as a wellness, fitness and physiological monitoring interface. The prototype is not intended to diagnose, treat, cure or prevent any medical condition and does not replace professional medical evaluation.</p><p class="text-muted small" style="margin-top:10px">Map data © OpenStreetMap contributors, © CARTO. Demo physiology is simulated.</p>`, actions: [{ label: 'Close', cls: 'btn--primary' }] });
+      BL.UI.modal({ title: 'About Biotex Life', body: `<div style="display:flex;justify-content:center;margin:4px 0 14px"><span class="brand-logo brand-logo--lg"><img alt="Biotex" ${document.documentElement.classList.contains('has-real-logo') ? `src="${$('.brand-logo img').src}"` : 'hidden'}><svg class="brand-logo__svg"><use href="#logo-full"/></svg></span></div><p><b>Biotex Life</b> v1.1 · Connected Human Performance for the Biotex ECG Jacket.</p><p>Biotex Life Solutions Pvt. Ltd., Hyderabad · ECG • Activity • Recovery</p><p class="small" style="margin-top:12px">Every number on screen is computed from the sensor signals with the formulas listed under <b>Calculations</b> — Tanaka HRmax, Karvonen zones, RMSSD / SDNN / pNN50 from ECG RR intervals, heart-rate recovery, z-score readiness, Banister TRIMP, acute : chronic load ratio, HR drift, VO₂max (Uth), Keytel energy, SpO₂ from the optical R ratio and the physiological strain index.</p><p class="small" style="margin-top:12px"><b>Important</b><br>Biotex Life is presented here as a wellness, fitness and physiological monitoring interface. The prototype is not intended to diagnose, treat, cure or prevent any medical condition and does not replace professional medical evaluation.</p><p class="text-muted small" style="margin-top:10px">Map data © OpenStreetMap contributors. Demo physiology is simulated.</p>`, actions: [{ label: 'Close', cls: 'btn--primary' }] });
     },
   };
 

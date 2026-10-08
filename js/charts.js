@@ -71,6 +71,9 @@
       (c.series || []).forEach((s) => s.data.forEach((v) => { if (v != null && isFinite(v)) vals.push(v); }));
       if (c.type === 'bar') vals = vals.concat(c.data.filter((v) => v != null));
       if (c.band) vals.push(c.band.from, c.band.to);
+      if (c.hlines) c.hlines.forEach((h) => vals.push(h.y));
+      if (c.overlay && c.overlay.data) c.overlay.data.forEach((v) => { if (v != null) vals.push(v); });
+      if (c.yTicks) vals = vals.concat(c.yTicks);
       let min = c.yMin != null ? c.yMin : Math.min.apply(null, vals), max = c.yMax != null ? c.yMax : Math.max.apply(null, vals);
       if (!isFinite(min) || !isFinite(max)) { min = 0; max = 1; }
       if (c.type === 'bar' && c.yMin == null) min = 0;
@@ -93,12 +96,50 @@
       ctx.save();
       ctx.strokeStyle = gridColor; ctx.lineWidth = 1; ctx.font = font(10); ctx.fillStyle = muted; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
       const gridLines = c.gridLines || 3;
-      for (let i = 0; i <= gridLines; i++) {
-        const v = min + ((max - min) * i) / gridLines, y = Math.round(yFor(v)) + 0.5;
+      const ticks = c.yTicks ? c.yTicks.filter((v) => v >= min && v <= max) : Array.from({ length: gridLines + 1 }, (_, i) => min + ((max - min) * i) / gridLines);
+      ticks.forEach((v) => {
+        const y = Math.round(yFor(v)) + 0.5;
         ctx.beginPath(); ctx.moveTo(L.padL, y); ctx.lineTo(L.w - L.padR, y); ctx.stroke();
         if (c.yAxis !== false) ctx.fillText(c.formatY ? c.formatY(v) : Math.round(v), L.padL - 8, y);
-      }
+      });
       ctx.restore();
+
+      /* shaded columns (e.g. hard repetitions) — index ranges */
+      if (c.vbands && c.vbands.length) {
+        ctx.save();
+        const n = c.type === 'bar' ? c.data.length : ((c.series && c.series[0]) || { data: [] }).data.length;
+        const xAt = (i) => (c.type === 'bar' ? L.padL + i * (L.iw / n) : L.padL + (n > 1 ? (i / (n - 1)) * L.iw : 0));
+        c.vbands.forEach((b) => {
+          const x1 = xAt(b.from), x2 = xAt(b.to);
+          ctx.fillStyle = BL.rgbaFor(b.color || 'text', b.alpha != null ? b.alpha : 0.06);
+          ctx.fillRect(x1, L.padT, Math.max(2, x2 - x1), L.ih);
+          if (b.label) { ctx.font = font(9, 700); ctx.fillStyle = muted; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(b.label, (x1 + x2) / 2, L.padT + 2); }
+        });
+        ctx.restore();
+      }
+      /* horizontal zone bands with labels */
+      if (c.hbands && c.hbands.length) {
+        ctx.save();
+        c.hbands.forEach((b, i) => {
+          const y1 = yFor(Math.min(max, b.to)), y2 = yFor(Math.max(min, b.from));
+          if (y2 <= y1) return;
+          ctx.fillStyle = BL.rgbaFor(b.color || 'text', b.alpha != null ? b.alpha : (i % 2 ? 0.05 : 0.025));
+          ctx.fillRect(L.padL, y1, L.iw, y2 - y1);
+          if (b.label) { ctx.font = font(9.5, 700); ctx.fillStyle = b.labelColor ? BL.colorFor(b.labelColor) : muted; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(b.label, L.padL + 6, (y1 + y2) / 2); }
+        });
+        ctx.restore();
+      }
+      /* reference lines */
+      if (c.hlines && c.hlines.length) {
+        ctx.save();
+        c.hlines.forEach((h) => {
+          const y = Math.round(yFor(h.y)) + 0.5;
+          ctx.strokeStyle = BL.rgbaFor(h.color || 'text', h.alpha != null ? h.alpha : 0.5); ctx.lineWidth = 1; ctx.setLineDash(h.dashed === false ? [] : [4, 4]);
+          ctx.beginPath(); ctx.moveTo(L.padL, y); ctx.lineTo(L.w - L.padR, y); ctx.stroke();
+          if (h.label) { ctx.setLineDash([]); ctx.font = font(9.5, 700); ctx.fillStyle = BL.colorFor(h.color || 'muted'); ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.fillText(h.label, L.w - L.padR - 2, y - 3); }
+        });
+        ctx.restore();
+      }
 
       /* baseline band */
       if (c.band) {
@@ -158,7 +199,7 @@
         runs.forEach((r) => {
           const solidEnd = s.dashedFrom != null ? Math.min(r.length, Math.max(1, r.findIndex((p) => p.i >= s.dashedFrom) === -1 ? r.length : r.findIndex((p) => p.i >= s.dashedFrom) + 1)) : r.length;
           const solid = r.slice(0, solidEnd), dashed = r.slice(Math.max(0, solidEnd - 1));
-          if (s.fill !== false && solid.length > 1) {
+          if (s.fill !== false && s.line !== false && solid.length > 1) {
             ctx.beginPath(); smoothPath(ctx, solid, s.tension);
             ctx.lineTo(solid[solid.length - 1].x, L.padT + L.ih); ctx.lineTo(solid[0].x, L.padT + L.ih); ctx.closePath();
             const grad = ctx.createLinearGradient(0, L.padT, 0, L.padT + L.ih);
@@ -166,9 +207,9 @@
             ctx.fillStyle = grad; ctx.fill();
           }
           ctx.lineWidth = s.width || 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = color;
-          if (solid.length > 1) { ctx.beginPath(); smoothPath(ctx, solid, s.tension); ctx.stroke(); }
+          if (s.line !== false && solid.length > 1) { ctx.beginPath(); if (s.smooth === false) { ctx.moveTo(solid[0].x, solid[0].y); solid.forEach((p) => ctx.lineTo(p.x, p.y)); } else smoothPath(ctx, solid, s.tension); ctx.stroke(); }
           if (s.dashedFrom != null && dashed.length > 1) { ctx.save(); ctx.setLineDash([4, 5]); ctx.globalAlpha = 0.55; ctx.beginPath(); smoothPath(ctx, dashed, s.tension); ctx.stroke(); ctx.restore(); }
-          if (s.dots) r.forEach((p) => { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill(); });
+          if (s.dots) r.forEach((p) => { ctx.fillStyle = s.dotColor ? BL.colorFor(s.dotColor) : color; ctx.beginPath(); ctx.arc(p.x, p.y, s.dotRadius || 3, 0, Math.PI * 2); ctx.fill(); });
           if (s.endDot && this.progress >= 1) {
             const p = solid[solid.length - 1];
             ctx.fillStyle = BL.rgbaFor(s.color || 'aqua', 0.25); ctx.beginPath(); ctx.arc(p.x, p.y, 9, 0, Math.PI * 2); ctx.fill();
@@ -186,9 +227,19 @@
           const col = BL.colorFor(m.color || 'aqua');
           ctx.fillStyle = col; ctx.beginPath(); ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2); ctx.fill();
           ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
-          const below = mi % 2 === 1;
+          const below = m.below != null ? m.below : mi % 2 === 1;
           ctx.textBaseline = below ? 'top' : 'bottom';
-          ctx.fillStyle = col; ctx.fillText(m.label.toUpperCase(), clamp(p.x, L.padL + 16, L.w - L.padR - 16), below ? p.y + 8 : p.y - 8);
+          ctx.fillStyle = m.textColor ? BL.colorFor(m.textColor) : col;
+          const label = m.upper === false ? m.label : m.label.toUpperCase();
+          /* keep the label inside the plot: flip left/right near the edges, clamp centred labels */
+          const tw = ctx.measureText(label).width, minX = L.padL, maxX = L.w - L.padR;
+          let align = m.align || 'center';
+          if (align === 'left' && p.x + 8 + tw > maxX) align = 'right';
+          else if (align === 'right' && p.x - 8 - tw < minX) align = 'left';
+          if ((align === 'left' && p.x + 8 + tw > maxX) || (align === 'right' && p.x - 8 - tw < minX)) align = 'center';
+          const lx = align === 'left' ? p.x + 8 : align === 'right' ? p.x - 8 : clamp(p.x, minX + tw / 2 + 2, maxX - tw / 2 - 2);
+          ctx.textAlign = align;
+          ctx.fillText(label, lx, below ? p.y + 8 : p.y - 8);
         });
         ctx.restore();
       }
@@ -214,6 +265,21 @@
         ctx.fill();
         if (v === 0 || v == null) { ctx.fillStyle = BL.rgbaFor('muted', 0.35); roundRect(ctx, x - bw / 2, baseY - 3, bw, 3, 1.5); ctx.fill(); }
       });
+      /* overlay line (e.g. 7-day average) */
+      if (c.overlay && c.overlay.data && this.progress > 0.2) {
+        const pts = c.overlay.data.map((v, i) => (v == null ? null : { x: L.padL + (i + 0.5) * slot, y: yFor(v) })).filter(Boolean);
+        if (pts.length > 1) { ctx.save(); ctx.globalAlpha = Math.min(1, (this.progress - 0.2) / 0.6); ctx.strokeStyle = BL.colorFor(c.overlay.color || 'text'); ctx.lineWidth = c.overlay.width || 2; ctx.lineJoin = 'round'; ctx.beginPath(); smoothPath(ctx, pts, 0.4); ctx.stroke(); ctx.restore(); }
+      }
+      /* label the highest bar */
+      if (c.labelMax && this.progress >= 1) {
+        let mi = -1, mv = -Infinity; data.forEach((v, i) => { if (v != null && v > mv) { mv = v; mi = i; } });
+        if (mi >= 0) { const p = this.points[mi]; ctx.save(); ctx.font = font(10, 700); ctx.fillStyle = BL.cssVar('--text-primary') || '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(c.formatValue ? c.formatValue(mv, mi) : Math.round(mv), p.x, p.y - 4); ctx.restore(); }
+      }
+      if (c.markers && this.progress >= 1) {
+        ctx.save(); ctx.font = font(9.5, 700); ctx.textAlign = 'center';
+        c.markers.forEach((m) => { const p = this.points[m.index]; if (!p) return; const col = BL.colorFor(m.color || 'aqua'); ctx.fillStyle = col; ctx.beginPath(); ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2); ctx.fill(); ctx.textBaseline = m.below ? 'top' : 'bottom'; ctx.fillStyle = m.textColor ? BL.colorFor(m.textColor) : col; const tw = ctx.measureText(m.label).width; ctx.fillText(m.label, clamp(p.x, L.padL + tw / 2 + 2, L.w - L.padR - tw / 2 - 2), m.below ? p.y + 7 : p.y - 7); });
+        ctx.restore();
+      }
     }
 
     onPointer(e) {

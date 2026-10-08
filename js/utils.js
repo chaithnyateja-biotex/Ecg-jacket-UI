@@ -130,8 +130,18 @@
     try { const ta = el('textarea', { style: 'position:fixed;opacity:0' }); ta.value = text; document.body.append(ta); ta.select(); const ok = document.execCommand('copy'); ta.remove(); return ok; } catch (e) { return false; }
   };
   const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  const colorFor = (key) => ({ aqua: cssVar('--accent-primary'), green: cssVar('--accent-green'), blue: cssVar('--accent-blue'), purple: cssVar('--accent-purple'), orange: cssVar('--accent-orange'), red: cssVar('--accent-red'), muted: cssVar('--text-muted') }[key] || key);
-  const rgbaFor = (key, a) => { const rgb = cssVar(`--accent-${key === 'aqua' ? 'primary' : key}-rgb`); return rgb ? `rgba(${rgb}, ${a})` : colorFor(key); };
+  const colorFor = (key) => ({ aqua: cssVar('--accent-primary'), green: cssVar('--accent-green'), blue: cssVar('--accent-blue'), purple: cssVar('--accent-purple'), orange: cssVar('--accent-orange'), red: cssVar('--accent-red'), amber: cssVar('--accent-amber'), muted: cssVar('--text-muted'), text: cssVar('--text-primary') }[key] || key);
+  /** colour token → rgba() with the given alpha; falls back to parsing the resolved hex / rgb() colour (text, muted, custom) */
+  const rgbaFor = (key, a) => {
+    const rgb = cssVar(`--accent-${key === 'aqua' ? 'primary' : key}-rgb`);
+    if (rgb) return `rgba(${rgb}, ${a})`;
+    const c = (colorFor(key) || '').trim();
+    const hex = /^#([0-9a-f]{3,8})$/i.exec(c);
+    if (hex) { let h = hex[1]; if (h.length === 3 || h.length === 4) h = h.split('').map((x) => x + x).join(''); const n = parseInt(h.slice(0, 6), 16); return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`; }
+    const m = /rgba?\(([^)]+)\)/.exec(c);
+    if (m) { const p = m[1].split(',').slice(0, 3).map((x) => x.trim()); return `rgba(${p.join(', ')}, ${a})`; }
+    return c || key;
+  };
 
   Object.assign(BL, {
     $, $$, el, icon, escapeHtml, on, clamp, lerp, round, easeOutCubic, easeInOut, gauss, seeded, sum, avg, haversine,

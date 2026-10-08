@@ -42,6 +42,7 @@
     { id: 'hike', label: 'Hiking', noun: 'Hike', category: 'walk', icon: 'hike', desc: 'Trail with elevation', speedKmh: 4.2, hrBase: 126, hrVar: 9, kcalPerMin: 7.5, cadence: 1.7, strainRate: 0.14, drainPerMin: 0.2, elevPerKm: 45, intensity: 0.5 },
     { id: 'training', label: 'Training', noun: 'Training', category: 'training', icon: 'dumbbell', desc: 'Strength & conditioning', speedKmh: 0, hrBase: 138, hrVar: 14, kcalPerMin: 9.5, cadence: 0.6, strainRate: 0.32, drainPerMin: 0.4, elevPerKm: 0, intensity: 0.65 },
     { id: 'recovery', label: 'Recovery Walk', noun: 'Recovery Walk', category: 'walk', icon: 'leaf', desc: 'Gentle, parasympathetic', speedKmh: 4.8, hrBase: 98, hrVar: 5, kcalPerMin: 4.2, cadence: 1.6, strainRate: 0.07, drainPerMin: 0.14, elevPerKm: 8, intensity: 0.2 },
+    { id: 'intervals', label: 'Interval Run', noun: 'Interval Run', category: 'run', icon: 'activity', desc: '5 × 3 min hard · 2 min easy', speedKmh: 10.5, hrBase: 150, hrVar: 6, kcalPerMin: 11, cadence: 2.7, strainRate: 0.5, drainPerMin: 0.65, elevPerKm: 12, intensity: 0.85, intervals: { warmup: 9, hard: 3, easy: 2, reps: 5, cooldown: 11 } },
   ];
   const activityType = (id) => ACTIVITY_TYPES.find((t) => t.id === id) || ACTIVITY_TYPES[0];
   const activityName = (id, date) => {
@@ -141,6 +142,7 @@
     { id: 'seed-a3', type: 'recovery', name: 'Recovery Walk', date: at(2, 17, 40), distanceKm: 3.4, durationSec: 2530, avgPace: 744, calories: 190, avgHr: 104, maxHr: 121, elevation: 22, steps: 4710, avgTemp: 36.7, fatigueDelta: 3, bbDelta: -6, load: 40, zones: [28, 12, 2, 0, 0], seeded: true },
     { id: 'seed-a4', type: 'cycle', name: 'Evening Ride', date: at(3, 18, 30), distanceKm: 18.6, durationSec: 2790, avgPace: 150, calories: 540, avgHr: 139, maxHr: 162, elevation: 140, steps: 0, avgTemp: 37.0, fatigueDelta: 11, bbDelta: -16, load: 66, zones: [4, 10, 19, 11, 2], seeded: true },
     { id: 'seed-a5', type: 'training', name: 'Strength Training', date: at(4, 7, 15), distanceKm: 0, durationSec: 2280, avgPace: 0, calories: 392, avgHr: 131, maxHr: 160, elevation: 0, steps: 1210, avgTemp: 37.0, fatigueDelta: 12, bbDelta: -15, load: 62, zones: [6, 9, 14, 8, 1], seeded: true },
+    { id: 'seed-a7', type: 'intervals', name: 'Interval Session', date: at(6, 6, 40), distanceKm: 7.6, durationSec: 2700, avgPace: 355, calories: 560, avgHr: 142, maxHr: 176, elevation: 48, steps: 7420, avgTemp: 37.2, fatigueDelta: 16, bbDelta: -21, load: 73, zones: [7, 4.5, 8, 8, 8], seeded: true },
     { id: 'seed-a6', type: 'hike', name: 'Weekend Hike', date: at(8, 6, 30), distanceKm: 9.4, durationSec: 7920, avgPace: 842, calories: 820, avgHr: 124, maxHr: 151, elevation: 410, steps: 12840, avgTemp: 37.0, fatigueDelta: 18, bbDelta: -26, load: 80, zones: [30, 52, 38, 10, 2], seeded: true },
   ];
 
@@ -174,6 +176,40 @@
     { text: 'Today appears suitable for moderate training.', icon: 'sparkles', color: 'green', tag: 'Readiness', screen: 'recovery' },
   ];
 
+  /* ---------- 28-day daily records (oldest → newest; the last entry is today and is filled live) ---------- */
+  const DAILY_28 = {
+    /* designed loads for days −27 … −9; days −8 … today are computed from the activity history */
+    designedLoads: [58, 92, 0, 38, 0, 120, 64, 0, 68, 95, 0, 48, 136, 84, 0, 70, 110, 62, 0],
+    lnRmssd: [3.98, 4.05, 4.02, 3.96, 4.01, 4.03, 3.97, 3.93, 3.99, 3.96, 3.91, 3.90, 3.95, 3.95, 3.93, 3.94, 3.92, 3.96, 4.02, 3.99, 3.86, 4.00, 3.96, 3.80, 3.98, 4.01, 3.97, null],
+    restingHr: [63, 62, 64, 61, 62, 60, 61, 63, 62, 63, 61, 62, 61, 60, 62, 61, 63, 62, 60, 61, 64, 62, 61, 65, 62, 60, 61, null],
+    tempDev: [0.0, 0.1, -0.1, 0.0, 0.1, 0.0, -0.1, 0.1, 0.2, 0.0, 0.1, 0.0, -0.1, 0.0, 0.1, 0.0, 0.0, 0.2, 0.1, 0.0, 0.3, 0.1, 0.0, 0.4, 0.2, 0.1, 0.0, null],
+    spo2Rest: [98, 98, 97, 98, 98, 99, 98, 98, 97, 98, 98, 98, 97, 98, 98, 98, 98, 97, 98, 98, 98, 97, 98, 97, 98, 98, 98, null],
+  };
+  const HRR60_WEEKS = [26, 27, 28, 27, 30, 31, 33]; // the 8th week is the latest measured session
+
+  /* ---------- Reference content: signal map (what each sensor collects and what it tells your training) ---------- */
+  const SIGNAL_MAP = [
+    { id: 'ecg', name: 'ECG', color: 'blue', icon: 'ecg', desc: 'Electrical activity of the heart, beat by beat', raw: 'Voltage waveform sampled at 250–500 Hz, plus lead-off status',
+      params: ['R-peak times and RR intervals (ms)', 'Beat-to-beat heart rate', 'PR, QRS and QT intervals', 'R-wave amplitude', 'Irregular and extra beats per hour'],
+      derived: ['HRV: RMSSD, SDNN, pNN50, LF/HF', 'Poincaré SD1/SD2 and DFA α1', 'Breathing rate from the ECG', 'Aerobic threshold estimate (DFA α1 near 0.75)', 'Recovery and stress status from HRV trend', 'QTc as a rhythm safety check'] },
+    { id: 'hr', name: 'Heart rate', color: 'orange', icon: 'heart', desc: 'Optical pulse sensor (PPG) on the skin', raw: 'Pulse wave from light reflected by blood flow under the skin',
+      params: ['Pulse rate (bpm), second by second', 'Pulse-to-pulse interval', 'Pulse amplitude', 'Resting, average and peak HR', 'HR at fixed times after stopping'],
+      derived: ['HRmax, HR reserve and five zones', 'Time in each zone', 'Heart-rate recovery in 60 s', 'TRIMP training load per session', 'Acute vs chronic load ratio', 'HR drift at steady effort', 'Calories and VO₂max estimate'] },
+    { id: 'spo2', name: 'SpO₂', color: 'green', icon: 'droplet', desc: 'Oxygen saturation of arterial blood', raw: 'Red and infrared light absorption, pulsing (AC) and steady (DC) parts',
+      params: ['Red-to-infrared ratio R', 'SpO₂ in percent', 'Perfusion index (signal strength)', 'Signal quality flag for motion'],
+      derived: ['Resting baseline SpO₂', 'Lowest SpO₂ in a session', 'Desaturation events (drop of 4 % or more)', 'Time spent below 90 %', 'Altitude acclimatisation trend', 'SpO₂ recovery time between intervals'] },
+    { id: 'temp', name: 'Body temperature', color: 'amber', icon: 'thermometer', desc: 'Skin temperature at the sensor site', raw: 'Skin temperature in °C, typically to ±0.1 °C',
+      params: ['Skin temperature at rest', 'Skin temperature during work', 'Night-time skin temperature', 'Rate of rise during exercise', 'Cool-down time after stopping'],
+      derived: ['Personal baseline and daily deviation', 'Heat-strain index, together with HR', 'Early illness or overreaching flag (0.5 °C or more above baseline)', 'Cycle-phase shift (about 0.3–0.5 °C)', 'Warm-up and cool-down completeness'] },
+  ];
+  const SIGNAL_COMBINED = [
+    { title: 'Pulse arrival time', sensors: ['blue', 'orange'], text: 'ECG R-peak to pulse arrival. Tracks blood-pressure trend, not an absolute reading.' },
+    { title: 'HR cross-check', sensors: ['blue', 'orange'], text: 'When ECG and optical HR disagree by more than 5 bpm, flag motion artefact.' },
+    { title: 'Heat-strain index', sensors: ['orange', 'amber'], text: 'HR and temperature rise combined into a 0–10 strain score for hot sessions.' },
+    { title: 'Morning readiness', sensors: ['blue', 'orange', 'green', 'amber'], text: 'HRV, resting HR, skin temperature and SpO₂, each scored against your own baseline.' },
+    { title: 'Load vs recovery', sensors: ['blue', 'orange'], text: 'TRIMP load plotted against HRV trend shows when to push and when to back off.' },
+  ];
+
   const DEVICE_INFO = [
     ['Model', 'Biotex ECG Jacket BTX-J1'],
     ['Serial number', 'BTX-ECG-0427'],
@@ -189,6 +225,6 @@
   BL.data = {
     INITIAL_VITALS, SENSORS, HR_ZONES, ZONE_MINUTES_TODAY, ACTIVITY_TYPES, activityType, activityName,
     HR_24, TEMP_24, BB_24, BB_EVENTS, HOUR_LABELS, WEEK, MONTH, YEAR, SLEEP, SLEEP_TODAY_HOURS,
-    SEED_ACTIVITIES, SEED_ECG, SEED_NOTIFICATIONS, INSIGHTS, DEVICE_INFO,
+    SEED_ACTIVITIES, SEED_ECG, SEED_NOTIFICATIONS, INSIGHTS, DEVICE_INFO, DAILY_28, HRR60_WEEKS, SIGNAL_MAP, SIGNAL_COMBINED,
   };
 })(window.BL = window.BL || {});

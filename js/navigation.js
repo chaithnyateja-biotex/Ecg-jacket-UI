@@ -9,7 +9,7 @@
 
   const TABS = ['home', 'activity', 'ecg', 'analytics', 'profile'];
   const PARENT = {
-    home: 'home', 'body-battery': 'home', fatigue: 'home', recovery: 'home', heart: 'home', temperature: 'home', sleep: 'home', insights: 'home', notifications: 'home', device: 'home',
+    home: 'home', 'body-battery': 'home', fatigue: 'home', recovery: 'home', heart: 'home', temperature: 'home', sleep: 'home', insights: 'home', notifications: 'home', device: 'home', signals: 'home', formulas: 'home',
     activity: 'activity', history: 'activity', 'activity-live': 'activity', map: 'activity', 'activity-summary': 'activity',
     ecg: 'ecg', analytics: 'analytics', profile: 'profile', settings: 'profile',
   };

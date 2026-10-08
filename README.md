@@ -17,6 +17,29 @@ or manually: `python -m http.server 8080` / `npx serve .` inside this folder.
 
 Deep links work: `index.html#/ecg`, `#/analytics`, `#/device`, `#/body-battery`, … (the splash plays first).
 
+## What is calculated — and how (v1.1)
+
+Every training number on screen is computed from the sensor signals with published formulas. The in-app **Signal Map** (Jacket → Signal Map) and **Calculations** (sidebar / Insights / Heart) screens show the formulas with a live worked example from your profile; the same functions live in `js/metrics.js`.
+
+| Metric | Formula / method | Source | Where it shows |
+| --- | --- | --- | --- |
+| HRmax | 208 − 0.7 × age (or your own value) | Tanaka 2001 | Profile, Heart, Calculations |
+| Training zones Z1–Z5 | HRrest + 50/60/70/80/90 % × (HRmax − HRrest) | Karvonen | Heart, Live activity, Summary (HR vs zones, time in zone) |
+| Heart-rate recovery HRR60 / HRR120 | HRpeak − HR 60 s / 120 s after stopping — measured live for 3 min after **Finish** | — | Summary, Heart (curve + 8-week trend), Insights |
+| HRV: RMSSD, SDNN, pNN50, ln RMSSD | from the ECG RR intervals (every R-peak of the live trace) | — | ECG (RR panel, saved sessions), Recovery, Calculations |
+| Breathing rate | respiratory modulation of the RR series | — | ECG RR panel |
+| Readiness | z = (today − 28-day mean) ÷ 28-day SD for ln RMSSD and resting HR; ease off at HRV z ≤ −1, RHR z ≥ +1 or skin temp ≥ +0.5 °C | — | Recovery (28-day chart with normal range), Home insight |
+| Session load TRIMP | minutes × x × 0.64 × e^(1.92x) (women 0.86 × e^(1.67x)), x = (HRavg − HRrest) ÷ (HRmax − HRrest) | Banister 1991 | Live activity, Summary, History |
+| Load balance ACWR | 7-day average load ÷ 28-day average load; 0.8–1.3 steady, > 1.5 spike; monotony = mean ÷ SD of 7 days | Gabbett 2016 | Home card, Analytics (28-day bars + ratio line) |
+| HR drift | (2nd-half mean − 1st-half mean) ÷ 1st-half mean, warm-up skipped, steady-pace sessions only | — | Summary, Heart |
+| VO₂max | 15.3 × HRmax ÷ HRrest | Uth 2004 | Profile, Heart |
+| Energy | kcal/min = (a + b·HR + c·kg + d·age) ÷ 4.184 | Keytel 2005 | Live calories |
+| SpO₂ | R = (ACred/DCred) ÷ (ACir/DCir), SpO₂ ≈ 110 − 25 R; readings flagged while moving | — | Live tile, Summary (SpO₂ + temperature with hard reps shaded) |
+| Heat strain PSI | 5 (T − T0)/(39.5 − T0) + 5 (HR − HR0)/(180 − HR0), 0–10 | Moran 1998 | Live tile, Summary |
+| HR cross-check | ECG R-peak rate vs optical pulse rate; > 5 bpm apart = motion artefact | — | Heart |
+
+Population formulas carry individual error — the screens say so, and HRmax can be overridden in the profile. Choose **Interval Run** (5 × 3 min hard / 2 min easy) in Start Activity to see the zone chart, SpO₂ dips, heat strain and a live heart-rate-recovery capture; stop right after a hard rep to measure HRR from the peak.
+
 ## Demo journey
 
 Splash → Onboarding (3 screens) → Connect Your Jacket (Search → Connected) → Dashboard →
@@ -44,7 +67,7 @@ Use a transparent PNG/SVG, ideally a white/light version for the dark UI. If the
 ## Structure
 
 ```
-index.html            app shell, all 22 screens, inline SVG icon sprite + brand mark
+index.html            app shell, all 24 screens, inline SVG icon sprite + brand mark
 style.css             design tokens (CSS variables), base, layout, animations, light theme
 css/components.css    buttons, cards, chips, gauges, charts, lists, nav, sheets, modals, toasts, map, jacket, battery
 css/screens.css       per-screen layouts
@@ -52,7 +75,8 @@ css/responsive.css    phone → tablet → desktop shell (sidebar at ≥1024px)
 script.js             App bootstrap, view-model, global actions, CSV export
 js/utils.js           DOM / math / formatting / animation helpers
 js/storage.js         StorageManager (localStorage), SettingsStore, unit formatters
-js/data.js            demo datasets, seed activities / ECG sessions / notifications, insights
+js/data.js            demo datasets, seed activities / ECG sessions / notifications, 28-day load & HRV series, signal map
+js/metrics.js         pure calculation layer — Tanaka, Karvonen, HRR, HRV, readiness z-scores, TRIMP, ACWR, drift, VO₂max, Keytel, SpO₂ R-ratio, PSI
 js/simulator.js       HealthDataSimulator + BodyBattery / Fatigue / Recovery engines
 js/ecg.js             ECGRenderer — mathematical PQRST morphology, 25 mm/s · 10 mm/mV sweep on Canvas
 js/charts.js          ChartManager — canvas line/area/bar charts, sparklines, SVG ring & arc gauges
@@ -62,7 +86,7 @@ js/notifications.js   NotificationManager + toasts
 js/activity.js        ActivityTracker — live session engine, summary builder, history store
 js/navigation.js      NavigationManager — SPA routing, transitions, hash deep-links, nav state
 js/ui.js              UIManager — data-binding, bottom sheet / modal / prompt / form, renderers
-js/screens.js         screen controllers (splash … history)
+js/screens.js         screen controllers (splash … history, signal map, calculations)
 assets/data/route-hyderabad.js   real road geometry: Hussain Sagar loop from Lumbini Park (OSM/OSRM)
 assets/images/        favicon + drop-in location for the official logo
 ```
@@ -71,7 +95,7 @@ Persistence (localStorage, prefix `biotexlife.`): onboarding, settings, profile,
 
 ## Notes
 
-- All physiology is **simulated** for interface evaluation. Body Battery, Fatigue and Recovery are demo models — not clinically validated algorithms.
+- All physiology is **simulated** for interface evaluation. Body Battery, Fatigue and Recovery are demo models — not clinically validated algorithms. The training metrics above use the published formulas on the simulated signals (ECG RR intervals, heart rate, SpO₂, skin temperature).
 - Map data © OpenStreetMap contributors. The dark map style is a CSS treatment of standard OSM tiles (no API key required). CARTO/Stadia dark tiles now require keys, so they are intentionally not used.
 - Web Share API is used where available (mobile browsers / https); otherwise the summary is copied to the clipboard.
 

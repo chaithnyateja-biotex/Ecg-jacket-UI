@@ -152,3 +152,19 @@
   .bottom-nav, .sidebar, .toast-root, .sheet-root, .modal-root { display: none !important; }
   .screen { position: static; overflow: visible; }
 }
+
+/* Reference / calculation layouts */
+@media (min-width: 768px) {
+  .hrr { flex-direction: row; align-items: stretch; }
+  .hrr__side { flex: 0 0 300px; grid-template-columns: 1fr; align-content: start; }
+  .zonechart { flex-direction: row; }
+  .zonechart .zonetime { flex: 0 0 220px; justify-content: center; }
+  .signal-grid { grid-template-columns: repeat(2, 1fr); }
+  .combined-grid { grid-template-columns: repeat(2, 1fr); }
+  .formula-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .signal-grid { grid-template-columns: repeat(4, 1fr); }
+  .combined-grid { grid-template-columns: repeat(5, 1fr); }
+  .formula-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
